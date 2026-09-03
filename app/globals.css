@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #F7F2E8;
+  --paper-light: #FDFBF7;
+  --paper-dark: #E7DCC8;
+  --paper-darker: #D8CBB3;
+
+  --teal: #1E6F6C;
+  --teal-light: #2E8A86;
+  --teal-dark: #144C4A;
+
+  --brass: #B8872B;
+  --brass-light: #D6A343;
+  --brass-dark: #8F671E;
+
+  --text: #2D2D2D;
+  --muted: #756F66;
+  --border: #DDD4C5;
+  --border-light: #EDE6DA;
+
+  --danger: #C0392B;
+  --success: #2E7D32;
+  --warning: #D35400;
+  --info: #2980B9;
+}
+
+body {
+  color: var(--text);
+  background-color: var(--paper);
+  font-family: var(--font-sans), 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom warm scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C4B9A5;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Print Styling */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+
+  .no-print,
+  aside,
+  header,
+  nav,
+  button,
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .printable-area {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm 15mm;
+  }
+}
