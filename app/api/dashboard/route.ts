@@ -5,6 +5,7 @@ import { getAuthSession } from '@/lib/auth';
 import Customer from '@/models/Customer';
 import Product from '@/models/Product';
 import Invoice from '@/models/Invoice';
+import Payment from '@/models/Payment';
 import Settings from '@/models/Settings';
 
 export async function GET(request: NextRequest) {
@@ -17,6 +18,12 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
+    const { searchParams } = new URL(request.url);
+    const dateQuery = searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+    const dayStart = new Date(`${dateQuery}T00:00:00.000Z`);
+    const dayEnd = new Date(`${dateQuery}T23:59:59.999Z`);
+
     // Parallel aggregation queries for speed
     const [
       customerCount,
@@ -26,6 +33,9 @@ export async function GET(request: NextRequest) {
       stockAttention,
       settings,
       debtCustomers,
+      daySalesStats,
+      dayPaymentStats,
+      recentPayments,
     ] = await Promise.all([
       // 1. Total Customers
       Customer.countDocuments({ userId: userObjectId }),
@@ -125,6 +135,25 @@ export async function GET(request: NextRequest) {
           },
         },
       ]),
+
+      // 8. Day Sales
+      Invoice.aggregate([
+        { $match: { userId: userObjectId, date: { $gte: dayStart, $lte: dayEnd } } },
+        { $group: { _id: null, totalSales: { $sum: '$total' }, invoiceCount: { $sum: 1 } } },
+      ]),
+
+      // 9. Day Payments
+      Payment.aggregate([
+        { $match: { userId: userObjectId, date: { $gte: dayStart, $lte: dayEnd } } },
+        { $group: { _id: null, totalPayments: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+
+      // 10. Recent Payments
+      Payment.find({ userId: userObjectId })
+        .sort({ date: -1, createdAt: -1 })
+        .limit(6)
+        .populate('customerId', 'name mobile code')
+        .lean(),
     ]);
 
     const pStat = productStats[0] || {
@@ -154,8 +183,12 @@ export async function GET(request: NextRequest) {
           totalCollected: iStat.totalCollected,
           totalOutstanding: iStat.totalOutstanding,
           totalInvoices: iStat.invoiceCount,
+          salesThisDay: daySalesStats[0]?.totalSales || 0,
+          paymentsThisDay: dayPaymentStats[0]?.totalPayments || 0,
         },
+        selectedDate: dateQuery,
         recentInvoices,
+        recentPayments: recentPayments || [],
         stockAttention,
         debtCustomers,
         businessName: settings?.businessName || session.businessName,

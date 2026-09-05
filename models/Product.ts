@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IProduct extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
+  code?: string;
   bookId?: mongoose.Types.ObjectId;
   warehouseId?: mongoose.Types.ObjectId;
   wp: string;
@@ -30,6 +31,10 @@ const ProductSchema = new Schema<IProduct>(
       ref: 'User',
       required: true,
       index: true,
+    },
+    code: {
+      type: String,
+      trim: true,
     },
     bookId: {
       type: Schema.Types.ObjectId,

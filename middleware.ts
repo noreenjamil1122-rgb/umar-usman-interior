@@ -5,13 +5,16 @@ const AUTH_COOKIE_NAME = 'wallpaper_auth_token';
 
 // Routes requiring authentication
 const protectedRoutes = [
+  '/warehouses',
   '/dashboard',
   '/customers',
   '/products',
   '/books',
-  '/warehouses',
   '/invoices',
   '/payments',
+  '/stock',
+  '/ledger',
+  '/reports',
   '/stock-history',
   '/settings',
   '/staff',
@@ -49,9 +52,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If logged in and visiting /login or /signup, redirect to /dashboard
+  // If logged in and visiting /login or /signup, redirect to /warehouses
   if (isAuthRoute && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/warehouses', request.url));
   }
 
   return NextResponse.next();

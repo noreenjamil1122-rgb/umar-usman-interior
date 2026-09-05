@@ -5,6 +5,7 @@ import { getAuthSession } from '@/lib/auth';
 import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
 import { ProductSchema } from '@/lib/validations';
+import { generateFormattedCode } from '@/lib/counters';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
 
 export async function GET(request: NextRequest) {
@@ -95,9 +96,14 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
     const initialStock = data.stock || 0;
+    const code = await generateFormattedCode(userObjectId, 'product');
+    const design = data.design?.trim() || data.wp.trim();
 
     const product = await Product.create({
       ...data,
+      code,
+      wp: data.wp.trim(),
+      design,
       userId: userObjectId,
       bookId: data.bookId ? new mongoose.Types.ObjectId(data.bookId) : undefined,
       warehouseId: data.warehouseId ? new mongoose.Types.ObjectId(data.warehouseId) : undefined,

@@ -55,12 +55,15 @@ export async function POST(request: NextRequest) {
       Settings.create({
         userId,
         businessName,
-        address: 'Lahore, Pakistan',
+        sellerName: 'Umar Nawaz',
+        phone: '+92 303 4333227',
+        whatsapp: '+92 303 4333227',
+        email: 'info@umarusmanwallpaper.com',
+        address: 'College road near five star naan shop, Lahore Punjab Pakistan',
         invoicePrefix: 'INV',
         defaultDiscount: 0,
         taxOn: false,
         taxRate: 0,
-        sellerName: businessName,
       }),
       Book.insertMany([
         { userId, code: 'BK-001', name: 'Rainbow8', color: '#1E6F6C' },

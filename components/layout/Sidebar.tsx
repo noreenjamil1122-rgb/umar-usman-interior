@@ -4,21 +4,19 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Warehouse,
   LayoutDashboard,
   Users,
-  Layers,
   BookOpen,
-  Warehouse,
   FileText,
   CreditCard,
-  History,
+  Package,
+  BookMarked,
+  BarChart3,
   Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
-  UserCheck,
-  Briefcase,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
@@ -31,15 +29,15 @@ interface NavItem {
 }
 
 const allNavItems: NavItem[] = [
+  { label: 'Warehouses', href: '/warehouses', icon: Warehouse },
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Customers', href: '/customers', icon: Users },
-  { label: 'Products', href: '/products', icon: Layers },
-  { label: 'Books', href: '/books', icon: BookOpen },
-  { label: 'Warehouses', href: '/warehouses', icon: Warehouse },
+  { label: 'Wallpaper Books', href: '/books', icon: BookOpen },
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Payments', href: '/payments', icon: CreditCard },
-  { label: 'Stock History', href: '/stock-history', icon: History },
-  { label: 'Staff & Workers', href: '/staff', icon: Briefcase, adminOnly: true },
+  { label: 'Stock', href: '/stock', icon: Package },
+  { label: 'Customer Ledger', href: '/ledger', icon: BookMarked },
+  { label: 'Reports', href: '/reports', icon: BarChart3 },
   { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];
 

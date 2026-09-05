@@ -4,6 +4,8 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { getAuthSession } from '@/lib/auth';
 import StockHistory from '@/models/StockHistory';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession(request);

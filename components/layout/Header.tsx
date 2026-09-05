@@ -17,6 +17,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface NotificationItem {
@@ -39,6 +41,10 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [hasUnackedUdhar, setHasUnackedUdhar] = useState<boolean>(false);
+  const [unpaidInvoicesList, setUnpaidInvoicesList] = useState<any[]>([]);
+  const [isUdharModalOpen, setIsUdharModalOpen] = useState<boolean>(false);
+  const [ackLoading, setAckLoading] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'debt' | 'stock'>('all');
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -50,6 +56,8 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
       const json = await res.json();
       if (json.success && json.data) {
         setNotifications(json.data.notifications || []);
+        setHasUnackedUdhar(Boolean(json.data.hasUnackedUdhar));
+        setUnpaidInvoicesList(json.data.unpaidInvoices || []);
         // Calculate unread excluding local reads
         const unread = (json.data.notifications || []).filter(
           (n: NotificationItem) => !readIds.has(n.id)
@@ -58,6 +66,28 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
       }
     } catch {
       // Silently catch background poll error
+    }
+  };
+
+  const handleAcknowledgeUdhar = async () => {
+    setAckLoading(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reminderAckDate: new Date().toISOString() }),
+      });
+      setHasUnackedUdhar(false);
+      setIsUdharModalOpen(false);
+      const { toast } = await import('sonner');
+      toast.success('Udhar check acknowledge ho gaya', {
+        description: 'Alert has been dismissed for today.',
+      });
+    } catch {
+      const { toast } = await import('sonner');
+      toast.error('Failed to acknowledge reminder');
+    } finally {
+      setAckLoading(false);
     }
   };
 
@@ -157,8 +187,16 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
         >
           <Bell className="w-5 h-5" />
 
+          {/* Daily Udhar Blinking Dot (Only if unacknowledged today) */}
+          {hasUnackedUdhar && (
+            <>
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-status-danger rounded-full animate-ping" />
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-status-danger rounded-full ring-2 ring-paper-light" />
+            </>
+          )}
+
           {/* Unread Count Badge */}
-          {unreadCount > 0 && (
+          {unreadCount > 0 && !hasUnackedUdhar && (
             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-status-danger text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-paper-light animate-pulse">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
@@ -188,6 +226,25 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
                 </button>
               )}
             </div>
+
+            {/* Daily Udhar Reminder Banner */}
+            {hasUnackedUdhar && (
+              <div className="p-3 bg-red-50 border-b border-red-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-status-danger animate-ping shrink-0" />
+                  <span className="text-xs font-bold text-red-900">Rozana Udhar Reminder</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsUdharModalOpen(true);
+                  }}
+                  className="px-2.5 py-1 bg-status-danger text-white rounded-md text-[11px] font-bold hover:bg-red-700 shadow-sm transition-colors"
+                >
+                  Review ({unpaidInvoicesList.length})
+                </button>
+              </div>
+            )}
 
             {/* Filter Tabs */}
             <div className="flex items-center gap-1 p-2 bg-paper/50 border-b border-warm-borderLight text-xs">
@@ -320,6 +377,64 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Daily Udhar Reminder Modal */}
+      <Modal
+        isOpen={isUdharModalOpen}
+        onClose={() => setIsUdharModalOpen(false)}
+        title="Rozana Udhar Reminder"
+        description="Daily overview of customer accounts with pending debt balances."
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <div className="max-h-72 overflow-y-auto divide-y divide-warm-borderLight border border-warm-border rounded-xl">
+            {unpaidInvoicesList.length === 0 ? (
+              <div className="p-4 text-center text-xs text-ink-muted">
+                No active outstanding invoices found.
+              </div>
+            ) : (
+              unpaidInvoicesList.map((inv) => (
+                <div key={inv._id} className="p-3 flex items-center justify-between text-xs hover:bg-paper transition-colors">
+                  <div>
+                    <div className="font-bold text-ink">{inv.customerName}</div>
+                    <div className="text-[11px] text-ink-muted">
+                      {inv.customerMobile || '-'} • Invoice: {inv.number}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-black text-status-danger">{formatCurrency(inv.remaining)}</div>
+                    <Link
+                      href={`/invoices/${inv._id}`}
+                      onClick={() => setIsUdharModalOpen(false)}
+                      className="text-[10px] text-teal hover:underline font-semibold"
+                    >
+                      View Bill
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-warm-borderLight">
+            <Link href="/customers?filter=debt" onClick={() => setIsUdharModalOpen(false)}>
+              <Button variant="outline" size="sm">
+                Open Debt Ledger
+              </Button>
+            </Link>
+
+            <Button
+              variant="teal"
+              size="sm"
+              onClick={handleAcknowledgeUdhar}
+              isLoading={ackLoading}
+              leftIcon={<CheckCircle2 className="w-4 h-4" />}
+            >
+              OK, Sab Dekh Liya
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </header>
   );
 }

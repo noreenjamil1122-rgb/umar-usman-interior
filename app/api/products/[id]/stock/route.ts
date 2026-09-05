@@ -84,6 +84,24 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       reference: reference || `Manual adjustment: ${reason}`,
     });
 
+    // Log Activity
+    const { logActivity } = await import('@/lib/activity');
+    if (qty < 0) {
+      await logActivity({
+        userId: userObjectId,
+        type: 'Stock Minus',
+        detail: `Stock reduced for WP ${currentProduct.wp} (${currentProduct.design}): ${qty} rolls. (${reason})`,
+        qty: Math.abs(qty),
+      });
+    } else if (reason.toLowerCase().includes('return')) {
+      await logActivity({
+        userId: userObjectId,
+        type: 'Stock Minus',
+        detail: `Stock returned for WP ${currentProduct.wp} (${currentProduct.design}): +${qty} rolls.`,
+        qty,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Stock update ho gaya',

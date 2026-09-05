@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('q') || '';
     const customerId = searchParams.get('customerId');
     const status = searchParams.get('status'); // 'paid', 'partial', 'unpaid'
+    const partyType = searchParams.get('partyType'); // 'customer' | 'supplier'
     const limit = Math.min(Number(searchParams.get('limit')) || 50, 100);
 
     const query: Record<string, unknown> = { userId: userObjectId };
@@ -37,6 +38,11 @@ export async function GET(request: NextRequest) {
 
     if (customerId) {
       query.customerId = new mongoose.Types.ObjectId(customerId);
+    } else if (partyType) {
+      const partyFilter = partyType === 'supplier' ? 'supplier' : { $ne: 'supplier' };
+      const matchedCustomers = await Customer.find({ userId: userObjectId, type: partyFilter }).select('_id').lean();
+      const customerIds = matchedCustomers.map((c) => c._id);
+      query.customerId = { $in: customerIds };
     }
 
     if (status === 'paid') {
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     const invoices = await Invoice.find(query)
-      .populate('customerId', 'name mobile code city')
+      .populate('customerId', 'name mobile code city type')
       .sort({ date: -1, createdAt: -1 })
       .limit(limit)
       .lean();
@@ -157,12 +163,12 @@ export async function POST(request: NextRequest) {
     const taxRate = Math.max(tax, 0);
     const taxAmount = roundMoney((taxableAmount * taxRate) / 100);
     const total = roundMoney(taxableAmount + taxAmount);
-    const safePaid = Math.min(Math.max(paid, 0), total);
+    const safePaid = Math.max(paid, 0);
     const remaining = roundMoney(total - safePaid);
 
-    // Determine Job Status: if remaining is 0 -> 'Fully Paid', otherwise use requested status or 'Advance Received'
+    // Determine Job Status: if remaining <= 0 -> 'Fully Paid', otherwise use requested status or 'Advance Received'
     const finalJobStatus =
-      remaining === 0
+      remaining <= 0
         ? 'Fully Paid'
         : requestedJobStatus || 'Advance Received';
 
@@ -175,6 +181,8 @@ export async function POST(request: NextRequest) {
       number: invoiceNumber,
       customerId: customer._id,
       date: validation.data.date ? new Date(validation.data.date) : new Date(),
+      sellerName: validation.data.sellerName || 'Umar Nawaz',
+      sellerContact: validation.data.sellerContact || '0300-4131532',
       items: verifiedItems,
       subtotal,
       discount: discountRate,

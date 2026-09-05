@@ -5,6 +5,7 @@ export interface ICustomer extends Document {
   userId: mongoose.Types.ObjectId;
   code: string;
   name: string;
+  type: 'customer' | 'supplier';
   mobile: string;
   whatsapp?: string;
   alt?: string;
@@ -32,6 +33,12 @@ const CustomerSchema = new Schema<ICustomer>(
       type: String,
       required: true,
       trim: true,
+    },
+    type: {
+      type: String,
+      enum: ['customer', 'supplier'],
+      default: 'customer',
+      index: true,
     },
     mobile: {
       type: String,

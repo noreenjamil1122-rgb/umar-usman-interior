@@ -20,9 +20,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || '';
-    const limit = Math.min(Number(searchParams.get('limit')) || 50, 200);
+    const typeFilter = searchParams.get('type'); // 'customer' | 'supplier'
+    const limit = Math.min(Number(searchParams.get('limit')) || 100, 500);
 
     const query: Record<string, unknown> = { userId: userObjectId };
+
+    if (typeFilter && ['customer', 'supplier'].includes(typeFilter)) {
+      query.type = typeFilter;
+    }
 
     if (search.trim()) {
       query.$or = [
@@ -38,31 +43,54 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .lean();
 
-    // Attach outstanding balances for each customer via aggregation
+    // Attach purchase, paid, and outstanding balances for each party via aggregation
     const customerIds = customers.map((c) => c._id);
     const balances = await Invoice.aggregate([
       {
         $match: {
           userId: userObjectId,
           customerId: { $in: customerIds },
-          remaining: { $gt: 0 },
         },
       },
       {
         $group: {
           _id: '$customerId',
+          totalPurchase: { $sum: '$total' },
+          totalPaid: { $sum: '$paid' },
           totalRemaining: { $sum: '$remaining' },
+          invoiceCount: { $sum: 1 },
         },
       },
     ]);
 
-    const balanceMap = new Map<string, number>();
-    balances.forEach((b) => balanceMap.set(b._id.toString(), b.totalRemaining));
+    const balanceMap = new Map<
+      string,
+      { totalPurchase: number; totalPaid: number; totalRemaining: number; invoiceCount: number }
+    >();
+    balances.forEach((b) =>
+      balanceMap.set(b._id.toString(), {
+        totalPurchase: b.totalPurchase || 0,
+        totalPaid: b.totalPaid || 0,
+        totalRemaining: b.totalRemaining || 0,
+        invoiceCount: b.invoiceCount || 0,
+      })
+    );
 
-    const customersWithBalances = customers.map((c) => ({
-      ...c,
-      outstandingBalance: balanceMap.get(c._id.toString()) || 0,
-    }));
+    const customersWithBalances = customers.map((c) => {
+      const stats = balanceMap.get(c._id.toString()) || {
+        totalPurchase: 0,
+        totalPaid: 0,
+        totalRemaining: 0,
+        invoiceCount: 0,
+      };
+      return {
+        ...c,
+        totalPurchase: stats.totalPurchase,
+        totalPaid: stats.totalPaid,
+        outstandingBalance: stats.totalRemaining,
+        invoiceCount: stats.invoiceCount,
+      };
+    });
 
     return NextResponse.json({
       success: true,

@@ -13,6 +13,7 @@ export const LoginSchema = z.object({
 
 export const CustomerSchema = z.object({
   name: z.string().min(2, 'Customer name is required').trim(),
+  type: z.enum(['customer', 'supplier']).default('customer'),
   mobile: z.string().min(7, 'Valid mobile number is required').trim(),
   whatsapp: z.string().optional(),
   alt: z.string().optional(),
@@ -31,8 +32,9 @@ export const WarehouseSchema = z.object({
 });
 
 export const ProductSchema = z.object({
+  code: z.string().optional(),
   wp: z.string().min(1, 'WP number is required').trim(),
-  design: z.string().min(1, 'Design name/number is required').trim(),
+  design: z.string().optional(),
   brand: z.string().optional().default('Umar Usman'),
   bookId: z.string().optional(),
   warehouseId: z.string().optional(),
@@ -52,12 +54,18 @@ export const StockAdjustmentSchema = z.object({
   qty: z.coerce.number().int(),
   reason: z.enum([
     'Opening Stock',
+    'Purchased',
     'Restock',
     'Adjustment',
+    'Adjustment Add',
+    'Adjustment Remove',
     'Damage',
+    'Damaged',
     'Correction',
     'Sale',
+    'Sold',
     'Return',
+    'Returned',
     'Other',
   ]),
   reference: z.string().optional(),
@@ -66,10 +74,11 @@ export const StockAdjustmentSchema = z.object({
 export const InvoiceItemSchema = z.object({
   productId: z.string().optional(),
   wp: z.string().min(1),
-  design: z.string().min(1),
+  design: z.string().optional().default(''),
   qty: z.coerce.number().min(1, 'Quantity must be at least 1'),
   rate: z.coerce.number().min(0, 'Rate cannot be negative'),
   amount: z.coerce.number().min(0),
+  isCustom: z.boolean().optional().default(false),
 });
 
 export const InvoiceSchema = z.object({
@@ -78,10 +87,12 @@ export const InvoiceSchema = z.object({
   items: z.array(InvoiceItemSchema).min(1, 'At least one line item is required'),
   discount: z.coerce.number().min(0).max(100).default(0),
   tax: z.coerce.number().min(0).default(0),
-  paid: z.coerce.number().min(0).default(0),
+  paid: z.coerce.number().default(0),
   method: z.string().default('Cash'),
   jobStatus: z.string().optional(),
   reference: z.string().optional().default('0'),
+  sellerName: z.string().optional(),
+  sellerContact: z.string().optional(),
   terms: z.string().optional().default('Custom'),
   notes: z.string().optional(),
 });

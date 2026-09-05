@@ -1,12 +1,4 @@
 import mongoose from 'mongoose';
-import dns from 'dns';
-
-// Fix for Windows DNS resolvers that fail on SRV records (_mongodb._tcp)
-try {
-  dns.setServers(['8.8.8.8', '8.8.4.4']);
-} catch {
-  // Ignore in environments where setting custom DNS servers is restricted
-}
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -28,8 +20,7 @@ if (!global.mongooseCache) {
 
 /**
  * Global cached MongoDB connection helper for Next.js App Router and serverless runtimes.
- * Prevents multiple connections during hot-reloads in development and reuses
- * connections across serverless lambda invocations in production.
+ * Keeps a warm connection pool alive to ensure instantaneous authentication and queries.
  */
 export async function connectToDatabase(): Promise<typeof mongoose> {
   if (!MONGODB_URI) {
@@ -38,15 +29,18 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
     );
   }
 
-  if (cached.conn) {
+  if (cached.conn && cached.conn.connection.readyState === 1) {
     return cached.conn;
   }
 
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 8000,
+      maxPoolSize: 20,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
     };
 
     cached.promise = mongoose

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
@@ -20,15 +19,22 @@ import {
   CreditCard,
   Plus,
   RefreshCw,
-  CheckCircle2,
   Calendar,
+  Share2,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 
 interface InvoiceDetail {
   _id: string;
   number: string;
   date: string;
+  sellerName?: string;
+  sellerContact?: string;
+  reference?: string;
+  terms?: string;
   customerId: {
     _id: string;
     name: string;
@@ -82,6 +88,27 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
   const [paymentPassword, setPaymentPassword] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
 
+  // Edit Invoice Modal & Password Gate
+  const [isEditAuthOpen, setIsEditAuthOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    date: '',
+    sellerName: '',
+    sellerContact: '',
+    reference: '',
+    terms: '',
+    notes: '',
+    jobStatus: '',
+    addPaymentAmount: 0,
+    addPaymentDate: new Date().toISOString().split('T')[0],
+    addPaymentMethod: 'Cash',
+    addPaymentRef: '',
+  });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Delete Password Modal
+  const [isDeleteAuthOpen, setIsDeleteAuthOpen] = useState(false);
+
   useEffect(() => {
     fetch('/api/auth/session')
       .then((r) => r.json())
@@ -93,15 +120,44 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
       .catch(() => {});
   }, []);
 
-  const handleDeleteInvoice = async () => {
-    if (!invoice) return;
-    if (
-      !confirm(
-        `Are you sure you want to delete Invoice ${invoice.number}? This will restore all wallpaper rolls back to inventory stock.`
-      )
-    ) {
-      return;
+  const fetchInvoice = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/invoices/${params.id}`);
+      const json = await res.json();
+      if (json.success) {
+        setInvoice(json.data.invoice);
+        setPayments(json.data.payments || []);
+        setPaymentAmount(json.data.invoice.remaining || 0);
+        setEditFormData({
+          date: json.data.invoice.date ? json.data.invoice.date.split('T')[0] : '',
+          sellerName: json.data.invoice.sellerName || 'Umar Nawaz',
+          sellerContact: json.data.invoice.sellerContact || '0300-4131532',
+          reference: json.data.invoice.reference || '0',
+          terms: json.data.invoice.terms || 'Custom',
+          notes: json.data.invoice.notes || '',
+          jobStatus: json.data.invoice.jobStatus || 'Advance Received',
+          addPaymentAmount: 0,
+          addPaymentDate: new Date().toISOString().split('T')[0],
+          addPaymentMethod: 'Cash',
+          addPaymentRef: '',
+        });
+      } else {
+        toast.error('Could not load invoice', { description: json.error });
+      }
+    } catch {
+      toast.error('Network Error');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchInvoice();
+  }, [params.id]);
+
+  const confirmDeleteInvoice = async () => {
+    if (!invoice) return;
 
     try {
       const res = await fetch(`/api/invoices/${invoice._id}`, { method: 'DELETE' });
@@ -118,28 +174,103 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     }
   };
 
-  const fetchInvoice = async () => {
-    setLoading(true);
+  const printInNewTab = () => {
+    if (!invoice) return;
+    window.open(`/invoices/${invoice._id}/print`, '_blank');
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!invoice) return;
+    const text = `*UMAR USMAN INTERIOR*
+Quotation / Invoice: ${invoice.number}
+Date: ${formatDate(invoice.date)}
+Customer: ${invoice.customerId?.name} (${invoice.customerId?.mobile})
+Total: Rs. ${invoice.total.toLocaleString()}
+Paid: Rs. ${invoice.paid.toLocaleString()}
+Balance Due: Rs. ${invoice.remaining.toLocaleString()}
+Job Status: ${invoice.jobStatus || '-'}
+Reference: ${invoice.reference || '-'}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleOpenEdit = () => {
+    setIsEditAuthOpen(true);
+  };
+
+  const handleEditAuthorized = () => {
+    setIsEditAuthOpen(false);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoice) return;
+    setEditSubmitting(true);
     try {
-      const res = await fetch(`/api/invoices/${params.id}`);
-      const json = await res.json();
-      if (json.success) {
-        setInvoice(json.data.invoice);
-        setPayments(json.data.payments || []);
-        setPaymentAmount(json.data.invoice.remaining || 0);
-      } else {
-        toast.error('Could not load invoice', { description: json.error });
+      const payload: Record<string, unknown> = {
+        date: editFormData.date,
+        sellerName: editFormData.sellerName,
+        sellerContact: editFormData.sellerContact,
+        reference: editFormData.reference,
+        terms: editFormData.terms,
+        notes: editFormData.notes,
+        jobStatus: editFormData.jobStatus,
+      };
+
+      if (editFormData.addPaymentAmount > 0) {
+        payload.additionalPayment = {
+          amount: editFormData.addPaymentAmount,
+          date: editFormData.addPaymentDate,
+          method: editFormData.addPaymentMethod,
+          reference: editFormData.addPaymentRef,
+        };
       }
+
+      const res = await fetch(`/api/invoices/${invoice._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error('Failed to update invoice', { description: json.error });
+        setEditSubmitting(false);
+        return;
+      }
+
+      toast.success('Invoice updated successfully');
+      setIsEditModalOpen(false);
+      fetchInvoice();
     } catch {
-      toast.error('Network Error');
+      toast.error('Network error during invoice update');
     } finally {
-      setLoading(false);
+      setEditSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    fetchInvoice();
-  }, [params.id]);
+  const renderStatusPill = () => {
+    if (!invoice) return null;
+    if (invoice.remaining <= 0) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm">
+          Payment Complete
+        </span>
+      );
+    }
+    if (invoice.paid > 0 && invoice.remaining > 0) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
+          Processing
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-red-100 text-red-800 border border-red-300 shadow-sm">
+        Udhar
+      </span>
+    );
+  };
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,13 +354,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
               <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight font-mono">
                 {invoice.number}
               </h1>
-              {isPaid ? (
-                <Badge variant="success">Fully Paid</Badge>
-              ) : invoice.paid > 0 ? (
-                <Badge variant="warning">Partial Payment</Badge>
-              ) : (
-                <Badge variant="danger">Unpaid</Badge>
-              )}
+              {renderStatusPill()}
 
               <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
                 invoice.jobStatus === 'Fully Paid'
@@ -257,7 +382,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {!isPaid && (
             <Button
               variant="teal"
@@ -269,21 +394,45 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
             </Button>
           )}
 
-          <Link href={`/invoices/${invoice._id}/print`}>
-            <Button variant="brass" size="sm" leftIcon={<Printer className="w-4 h-4" />}>
-              Print Invoice (A4)
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleWhatsAppShare}
+            className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+            leftIcon={<Share2 className="w-4 h-4" />}
+          >
+            WhatsApp
+          </Button>
+
+          <Button
+            variant="brass"
+            size="sm"
+            onClick={printInNewTab}
+            leftIcon={<Printer className="w-4 h-4" />}
+          >
+            Print (A4)
+          </Button>
 
           {userRole === 'admin' && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleDeleteInvoice}
-              title="Delete Invoice & Restore Stock (Admin Only)"
-            >
-              Delete Invoice
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenEdit}
+                leftIcon={<Edit className="w-4 h-4" />}
+              >
+                Edit Invoice
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setIsDeleteAuthOpen(true)}
+                title="Delete Invoice & Restore Stock"
+                leftIcon={<Trash2 className="w-4 h-4" />}
+              >
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -483,12 +632,26 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 <span className="font-bold">{formatCurrency(invoice.paid)}</span>
               </div>
 
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex justify-between items-center">
-                <span className="font-bold text-amber-900">Remaining Udhar:</span>
-                <span className="text-base font-extrabold text-amber-950">
-                  {formatCurrency(invoice.remaining)}
-                </span>
-              </div>
+              {invoice.remaining < 0 ? (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex justify-between items-center">
+                  <span className="font-bold text-emerald-900">Advance / Credit:</span>
+                  <span className="text-base font-extrabold text-emerald-950">
+                    {formatCurrency(Math.abs(invoice.remaining))}
+                  </span>
+                </div>
+              ) : invoice.remaining === 0 ? (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex justify-between items-center">
+                  <span className="font-bold text-emerald-900">Balance Status:</span>
+                  <span className="text-sm font-bold text-emerald-950">Cleared (Rs. 0)</span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex justify-between items-center">
+                  <span className="font-bold text-amber-900">Remaining Udhar:</span>
+                  <span className="text-base font-extrabold text-amber-950">
+                    {formatCurrency(invoice.remaining)}
+                  </span>
+                </div>
+              )}
 
               {invoice.notes && (
                 <div className="pt-2 text-ink-muted">
@@ -506,14 +669,13 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         isOpen={isPaymentOpen}
         onClose={() => setIsPaymentOpen(false)}
         title={`Record Payment — ${invoice.number}`}
-        description={`Remaining balance: ${formatCurrency(invoice.remaining)}`}
+        description={`Current balance: ${formatCurrency(invoice.remaining)}`}
       >
         <form onSubmit={handleRecordPayment} className="space-y-4">
           <Input
             label="Payment Amount (PKR)"
             type="number"
             min="0.01"
-            max={invoice.remaining}
             required
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(Number(e.target.value))}
@@ -571,6 +733,169 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
           </div>
         </form>
       </Modal>
+
+      {/* Edit Invoice Authorization Gate */}
+      <PasswordPromptModal
+        isOpen={isEditAuthOpen}
+        onClose={() => setIsEditAuthOpen(false)}
+        title={`Authorize Edit: Invoice ${invoice.number}`}
+        actionDescription="Enter the admin password to edit quotation headers, dates, or append dated payments."
+        protectionType="payment"
+        onAuthorized={handleEditAuthorized}
+      />
+
+      {/* Edit Invoice Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Invoice — ${invoice.number}`}
+        description="Update header fields and record additional payments."
+        maxWidth="lg"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Invoice Date"
+              type="date"
+              value={editFormData.date}
+              onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+            />
+            <Input
+              label="Reference"
+              type="text"
+              placeholder="e.g. Room / Wall"
+              value={editFormData.reference}
+              onChange={(e) => setEditFormData({ ...editFormData, reference: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Seller Name"
+              type="text"
+              value={editFormData.sellerName}
+              onChange={(e) => setEditFormData({ ...editFormData, sellerName: e.target.value })}
+            />
+            <Input
+              label="Seller Contact"
+              type="text"
+              value={editFormData.sellerContact}
+              onChange={(e) => setEditFormData({ ...editFormData, sellerContact: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-ink">Terms</label>
+              <select
+                value={editFormData.terms}
+                onChange={(e) => setEditFormData({ ...editFormData, terms: e.target.value })}
+                className="w-full rounded-lg border border-warm-border bg-paper px-3 py-2 text-xs text-ink focus:border-teal focus:outline-none"
+              >
+                <option value="Custom">Custom</option>
+                <option value="100% advance in cash">100% advance in cash</option>
+                <option value="50% Advance & 50% After Fitting">50% Advance &amp; 50% After Fitting</option>
+                <option value="Cash on Delivery">Cash on Delivery</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-ink">Job Status</label>
+              <select
+                value={editFormData.jobStatus}
+                onChange={(e) => setEditFormData({ ...editFormData, jobStatus: e.target.value })}
+                className="w-full rounded-lg border border-warm-border bg-paper px-3 py-2 text-xs text-ink focus:border-teal focus:outline-none"
+              >
+                <option value="Advance Received">Advance Received</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Fully Paid">Fully Paid</option>
+              </select>
+            </div>
+          </div>
+
+          <Input
+            label="Notes"
+            type="text"
+            value={editFormData.notes}
+            onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+          />
+
+          {/* Optional Additional Payment Entry */}
+          <div className="p-3 bg-paper rounded-xl border border-warm-border space-y-3">
+            <h4 className="text-xs font-bold text-ink uppercase tracking-wider">
+              + Add Dated Payment (Optional)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input
+                label="Amount (PKR)"
+                type="number"
+                min="0"
+                value={editFormData.addPaymentAmount || ''}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, addPaymentAmount: Number(e.target.value) })
+                }
+              />
+              <Input
+                label="Payment Date"
+                type="date"
+                value={editFormData.addPaymentDate}
+                onChange={(e) => setEditFormData({ ...editFormData, addPaymentDate: e.target.value })}
+              />
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-ink">Method</label>
+                <select
+                  value={editFormData.addPaymentMethod}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, addPaymentMethod: e.target.value })
+                  }
+                  className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-xs text-ink focus:border-teal focus:outline-none"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="JazzCash">JazzCash</option>
+                  <option value="EasyPaisa">EasyPaisa</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+            </div>
+            <Input
+              label="Payment Reference"
+              type="text"
+              placeholder="e.g. Receipt # or online slip"
+              value={editFormData.addPaymentRef}
+              onChange={(e) => setEditFormData({ ...editFormData, addPaymentRef: e.target.value })}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-warm-borderLight">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="teal"
+              isLoading={editSubmitting}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <PasswordPromptModal
+        isOpen={isDeleteAuthOpen}
+        onClose={() => setIsDeleteAuthOpen(false)}
+        title={`Authorize Deletion: Invoice ${invoice.number}`}
+        actionDescription={`Permanently delete invoice ${invoice.number}. All wallpaper rolls sold will be automatically returned to stock.`}
+        protectionType="delete"
+        onAuthorized={confirmDeleteInvoice}
+      />
     </AppShell>
   );
 }

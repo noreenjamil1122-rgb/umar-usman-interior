@@ -9,16 +9,27 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') || '/dashboard';
+  const from = searchParams.get('from') || '/warehouses';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem('last_used_email');
+      if (savedEmail) {
+        setEmail(savedEmail);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +57,12 @@ export default function LoginPage() {
         toast.error('Login Failed', { description: msg });
         setLoading(false);
         return;
+      }
+
+      try {
+        localStorage.setItem('last_used_email', email);
+      } catch {
+        // ignore
       }
 
       toast.success('Login Kamyab!', {
@@ -165,5 +182,19 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-paper flex items-center justify-center text-ink-muted text-sm">
+          Loading login portal...
+        </div>
+      }
+    >
+      <LoginForm />
+    </React.Suspense>
   );
 }

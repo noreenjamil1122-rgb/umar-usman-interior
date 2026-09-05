@@ -7,6 +7,7 @@ import Invoice from '@/models/Invoice';
 import Payment from '@/models/Payment';
 import { CustomerSchema } from '@/lib/validations';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
+import { logActivity } from '@/lib/activity';
 
 interface RouteContext {
   params: { id: string };
@@ -148,6 +149,12 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
+
+    await logActivity({
+      userId: userObjectId,
+      type: 'Customer Deleted',
+      detail: `${deleted.type === 'supplier' ? 'Supplier' : 'Customer'} deleted: ${deleted.name} (${deleted.code})`,
+    });
 
     return NextResponse.json({
       success: true,

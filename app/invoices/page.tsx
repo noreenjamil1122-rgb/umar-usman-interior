@@ -5,24 +5,25 @@ import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   FileText,
   Search,
   Plus,
-  Printer,
   Trash2,
   Eye,
   RefreshCw,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 
 interface Invoice {
   _id: string;
   number: string;
   date: string;
-  customerId?: { _id: string; name: string; mobile: string; code: string };
+  customerId?: { _id: string; name: string; mobile: string; code: string; type?: string };
   items: Array<{ wp: string; design: string; qty: number; rate: number; amount: number }>;
   subtotal: number;
   discount: number;
@@ -39,9 +40,20 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(''); // 'paid' | 'partial' | 'unpaid'
+  const [activeTab, setActiveTab] = useState<'customer' | 'supplier'>('customer');
+  const [supplierUnlocked, setSupplierUnlocked] = useState(false);
+  const [isSupplierAuthOpen, setIsSupplierAuthOpen] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'worker'>('admin');
 
+  // Delete invoice with password
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+
   useEffect(() => {
+    // Check if supplier was previously unlocked in this session
+    if (typeof window !== 'undefined' && sessionStorage.getItem('supplier_unlocked') === 'true') {
+      setSupplierUnlocked(true);
+    }
+
     fetch('/api/auth/session')
       .then((r) => r.json())
       .then((d) => {
@@ -58,6 +70,7 @@ export default function InvoicesPage() {
       const params = new URLSearchParams();
       if (search.trim()) params.set('q', search.trim());
       if (statusFilter) params.set('status', statusFilter);
+      params.set('partyType', activeTab);
 
       const res = await fetch(`/api/invoices?${params.toString()}`);
       const json = await res.json();
@@ -75,29 +88,68 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     fetchInvoices();
-  }, [search, statusFilter]);
+  }, [search, statusFilter, activeTab]);
 
-  const handleDelete = async (inv: Invoice) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete Invoice ${inv.number}? This will automatically restore sold wallpaper rolls back into inventory.`
-      )
-    ) {
+  const handleTabChange = (tab: 'customer' | 'supplier') => {
+    if (tab === 'supplier' && !supplierUnlocked) {
+      setIsSupplierAuthOpen(true);
       return;
     }
+    setActiveTab(tab);
+  };
+
+  const handleSupplierAuthorized = () => {
+    setSupplierUnlocked(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('supplier_unlocked', 'true');
+    }
+    setIsSupplierAuthOpen(false);
+    setActiveTab('supplier');
+    toast.success('Supplier Invoices Unlocked');
+  };
+
+  const confirmDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
 
     try {
-      const res = await fetch(`/api/invoices/${inv._id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/invoices/${invoiceToDelete._id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok || !json.success) {
         toast.error('Cannot delete invoice', { description: json.error });
         return;
       }
       toast.success('Invoice deleted and stock restored');
+      setInvoiceToDelete(null);
       fetchInvoices();
     } catch {
       toast.error('Failed to delete invoice');
     }
+  };
+
+  // Inverted color scheme helper:
+  // Payment Complete (fully paid) = Yellow
+  // Processing (partial payment) = Green
+  // Udhar (fully unpaid) = Red
+  const renderStatusBadge = (inv: Invoice) => {
+    if (inv.remaining <= 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+          Payment Complete
+        </span>
+      );
+    }
+    if (inv.paid > 0 && inv.remaining > 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          Processing
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800 border border-red-300">
+        Udhar
+      </span>
+    );
   };
 
   return (
@@ -106,7 +158,7 @@ export default function InvoicesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-            Customer Invoices &amp; Billing
+            Invoices &amp; Billing
           </h1>
           <p className="text-xs md:text-sm text-ink-muted">
             Track sales, print itemized receipts, and monitor Udhar balances
@@ -118,6 +170,38 @@ export default function InvoicesPage() {
             Create New Invoice
           </Button>
         </Link>
+      </div>
+
+      {/* Tabs: Customer vs Supplier */}
+      <div className="flex items-center gap-2 mb-4 border-b border-warm-border pb-2">
+        <button
+          onClick={() => handleTabChange('customer')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            activeTab === 'customer'
+              ? 'bg-teal text-white shadow-warm'
+              : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+          }`}
+        >
+          Customer Invoices
+        </button>
+        <button
+          onClick={() => handleTabChange('supplier')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === 'supplier'
+              ? 'bg-brass-dark text-white shadow-warm'
+              : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+          }`}
+        >
+          {supplierUnlocked ? (
+            <Unlock className="w-3.5 h-3.5 text-emerald-600" />
+          ) : (
+            <Lock className="w-3.5 h-3.5 text-brass-dark" />
+          )}
+          <span>Supplier Invoices</span>
+          {!supplierUnlocked && (
+            <span className="text-[10px] px-1 py-0.2 bg-warm-border rounded text-ink-muted">Locked</span>
+          )}
+        </button>
       </div>
 
       {/* Filter and Search Card */}
@@ -137,43 +221,43 @@ export default function InvoicesPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setStatusFilter('')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 statusFilter === ''
-                  ? 'bg-teal text-white shadow-warm'
+                  ? 'bg-ink text-white'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              All Invoices
+              All
             </button>
             <button
               onClick={() => setStatusFilter('unpaid')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 statusFilter === 'unpaid'
-                  ? 'bg-status-danger text-white shadow-warm'
+                  ? 'bg-red-600 text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              Unpaid
+              Udhar (Unpaid)
             </button>
             <button
               onClick={() => setStatusFilter('partial')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 statusFilter === 'partial'
-                  ? 'bg-brass text-white shadow-warm'
+                  ? 'bg-emerald-600 text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              Partial
+              Processing (Partial)
             </button>
             <button
               onClick={() => setStatusFilter('paid')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 statusFilter === 'paid'
-                  ? 'bg-status-success text-white shadow-warm'
+                  ? 'bg-amber-500 text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              Fully Paid
+              Payment Complete (Paid)
             </button>
           </div>
         </div>
@@ -185,7 +269,7 @@ export default function InvoicesPage() {
           {loading ? (
             <div className="py-16 text-center text-xs text-ink-muted flex items-center justify-center">
               <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
-              Loading invoices...
+              Loading {activeTab === 'supplier' ? 'supplier' : 'customer'} invoices...
             </div>
           ) : invoices.length === 0 ? (
             <div className="py-16 text-center text-ink-muted space-y-3">
@@ -201,20 +285,23 @@ export default function InvoicesPage() {
                 <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
                   <tr>
                     <th className="py-3 px-4">Invoice #</th>
-                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Party</th>
                     <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Job / Fitting</th>
-                    <th className="py-3 px-4">Total Amount</th>
-                    <th className="py-3 px-4">Paid (Advance)</th>
-                    <th className="py-3 px-4">Remaining (Udhar)</th>
-                    <th className="py-3 px-4">Payment</th>
+                    <th className="py-3 px-4 text-right">Total Amount</th>
+                    <th className="py-3 px-4 text-right">Paid (Advance)</th>
+                    <th className="py-3 px-4 text-right">Remaining (Udhar)</th>
+                    <th className="py-3 px-4 text-center">Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
                   {invoices.map((inv) => (
                     <tr key={inv._id} className="hover:bg-paper transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-teal">{inv.number}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-teal">
+                        <Link href={`/invoices/${inv._id}`} className="hover:underline">
+                          {inv.number}
+                        </Link>
+                      </td>
                       <td className="py-3 px-4 text-ink font-semibold">
                         <div>{inv.customerId?.name || 'Walk-in'}</div>
                         <div className="text-[10px] text-ink-muted font-normal">
@@ -222,42 +309,25 @@ export default function InvoicesPage() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-ink-muted">{formatDate(inv.date)}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
-                          inv.jobStatus === 'Fully Paid'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : inv.jobStatus === 'In Progress'
-                            ? 'bg-blue-100 text-blue-800'
-                            : inv.jobStatus === 'Completed'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-teal-subtle text-teal'
-                        }`}>
-                          {inv.jobStatus || (inv.remaining === 0 ? 'Fully Paid' : 'Advance Received')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-bold text-ink">{formatCurrency(inv.total)}</td>
-                      <td className="py-3 px-4 font-medium text-status-success">{formatCurrency(inv.paid)}</td>
-                      <td className="py-3 px-4 font-bold text-status-warning">
-                        {inv.remaining > 0 ? formatCurrency(inv.remaining) : '-'}
-                      </td>
-                      <td className="py-3 px-4">
-                        {inv.remaining <= 0 ? (
-                          <Badge variant="success" size="sm">Paid</Badge>
-                        ) : inv.paid > 0 ? (
-                          <Badge variant="warning" size="sm">Partial</Badge>
+                      <td className="py-3 px-4 text-right font-bold text-ink">{formatCurrency(inv.total)}</td>
+                      <td className="py-3 px-4 text-right font-medium text-status-success">{formatCurrency(inv.paid)}</td>
+                      <td className="py-3 px-4 text-right font-bold">
+                        {inv.remaining > 0 ? (
+                          <span className="text-status-danger">{formatCurrency(inv.remaining)}</span>
+                        ) : inv.remaining < 0 ? (
+                          <span className="text-status-success font-medium">Adv: {formatCurrency(Math.abs(inv.remaining))}</span>
                         ) : (
-                          <Badge variant="danger" size="sm">Unpaid</Badge>
+                          <span className="text-ink-muted font-normal">Rs. 0</span>
                         )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {renderStatusBadge(inv)}
                       </td>
                       <td className="py-3 px-4 text-right space-x-1">
                         <Link href={`/invoices/${inv._id}`}>
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-teal" title="View Details">
-                            <Eye className="w-3.5 h-3.5" />
-                          </Button>
-                        </Link>
-                        <Link href={`/invoices/${inv._id}/print`}>
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-brass-dark" title="Print Invoice">
-                            <Printer className="w-3.5 h-3.5" />
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-teal" title="View / Print">
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            <span>View</span>
                           </Button>
                         </Link>
                         {userRole === 'admin' && (
@@ -265,8 +335,8 @@ export default function InvoicesPage() {
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-xs text-status-danger hover:bg-status-dangerLight"
-                            onClick={() => handleDelete(inv)}
-                            title="Delete Invoice and Restore Stock (Admin Only)"
+                            onClick={() => setInvoiceToDelete(inv)}
+                            title="Delete Invoice and Restore Stock"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -280,6 +350,26 @@ export default function InvoicesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Supplier Unlock Password Modal */}
+      <PasswordPromptModal
+        isOpen={isSupplierAuthOpen}
+        onClose={() => setIsSupplierAuthOpen(false)}
+        title="Unlock Supplier Invoices"
+        actionDescription="Enter the Supplier Lock password to view vendor invoices and billing history for this session."
+        protectionType="supplier"
+        onAuthorized={handleSupplierAuthorized}
+      />
+
+      {/* Delete Password Modal */}
+      <PasswordPromptModal
+        isOpen={Boolean(invoiceToDelete)}
+        onClose={() => setInvoiceToDelete(null)}
+        title={`Authorize Deletion: Invoice ${invoiceToDelete?.number}`}
+        actionDescription={`Permanently delete invoice ${invoiceToDelete?.number}. All wallpaper rolls sold will be automatically restored to stock.`}
+        protectionType="delete"
+        onAuthorized={confirmDeleteInvoice}
+      />
     </AppShell>
   );
 }

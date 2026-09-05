@@ -61,6 +61,8 @@ export default function NewInvoicePage() {
   // Form State
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sellerName, setSellerName] = useState('Umar Nawaz');
+  const [sellerContact, setSellerContact] = useState('0300-4131532');
   const [reference, setReference] = useState('0');
   const [terms, setTerms] = useState('Custom');
   const [items, setItems] = useState<LineItem[]>([]);
@@ -104,6 +106,8 @@ export default function NewInvoicePage() {
           setDiscountPercent(sData.data.defaultDiscount || 0);
           setTaxOn(Boolean(sData.data.taxOn));
           setTaxRate(sData.data.taxRate || 0);
+          if (sData.data.ownerName) setSellerName(sData.data.ownerName);
+          if (sData.data.contact) setSellerContact(sData.data.contact);
         }
       } catch (err) {
         console.error('Invoice init error:', err);
@@ -237,7 +241,7 @@ export default function NewInvoicePage() {
   const effectiveTaxRate = taxOn ? Math.max(taxRate, 0) : 0;
   const taxAmount = roundMoney((taxableAmount * effectiveTaxRate) / 100);
   const total = roundMoney(taxableAmount + taxAmount);
-  const remaining = roundMoney(Math.max(total - paidAmount, 0));
+  const remaining = roundMoney(total - paidAmount);
 
   // Submit Invoice
   const handleSubmitInvoice = async () => {
@@ -257,6 +261,8 @@ export default function NewInvoicePage() {
       const payload = {
         customerId: selectedCustomerId,
         date: invoiceDate,
+        sellerName,
+        sellerContact,
         reference,
         terms,
         items: items.map((i) => ({
@@ -293,7 +299,7 @@ export default function NewInvoicePage() {
         description: `Invoice ${json.data.number} created and inventory deducted.`,
       });
 
-      router.push(`/invoices/${json.data._id}/print`);
+      router.push(`/invoices/${json.data._id}`);
     } catch {
       toast.error('Network error while creating invoice');
       setSubmitting(false);
@@ -388,6 +394,24 @@ export default function NewInvoicePage() {
                   type="date"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
+                  required
+                />
+
+                <Input
+                  label="Seller Name"
+                  type="text"
+                  placeholder="e.g. Umar Nawaz"
+                  value={sellerName}
+                  onChange={(e) => setSellerName(e.target.value)}
+                  required
+                />
+
+                <Input
+                  label="Seller Contact"
+                  type="text"
+                  placeholder="e.g. 0300-4131532"
+                  value={sellerContact}
+                  onChange={(e) => setSellerContact(e.target.value)}
                   required
                 />
 
@@ -689,9 +713,14 @@ export default function NewInvoicePage() {
                 <input
                   type="number"
                   min="0"
-                  max={total}
                   value={paidAmount || ''}
-                  onChange={(e) => setPaidAmount(Math.min(total, Number(e.target.value)))}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setPaidAmount(val);
+                    if (val >= total && total > 0) {
+                      setJobStatus('Fully Paid');
+                    }
+                  }}
                   placeholder="Enter advance or cash amount"
                   className="w-full px-3 py-2 bg-paper-light border border-warm-border rounded-lg text-sm font-bold text-status-success focus:border-teal focus:outline-none"
                 />
@@ -713,20 +742,39 @@ export default function NewInvoicePage() {
                   </select>
                 </div>
 
-                {/* Remaining Udhar Balance with Persistent Reminder Note */}
-                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-amber-900">Remaining Udhar:</span>
-                    <span className="font-bold text-amber-950 text-sm">
-                      {formatCurrency(remaining)}
-                    </span>
+                {/* Remaining Udhar / Advance Credit Balance */}
+                {remaining < 0 ? (
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-emerald-900">Advance / Credit Balance:</span>
+                      <span className="font-bold text-emerald-950 text-sm">
+                        {formatCurrency(Math.abs(remaining))}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-emerald-800">
+                      ✓ Customer has overpaid. Credit balance will be carried in client account.
+                    </div>
                   </div>
-                  {remaining > 0 && (
+                ) : remaining === 0 ? (
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-emerald-900">Payment Balance:</span>
+                      <span className="font-bold text-emerald-950 text-sm">Cleared (Rs. 0)</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-amber-900">Remaining Udhar:</span>
+                      <span className="font-bold text-amber-950 text-sm">
+                        {formatCurrency(remaining)}
+                      </span>
+                    </div>
                     <div className="text-[11px] text-amber-800">
                       ⚡ Persistent Reminder: Client will remain flagged in Debt Alerts until fully cleared.
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">

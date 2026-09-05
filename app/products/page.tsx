@@ -57,7 +57,7 @@ interface WarehouseOption {
   code: string;
 }
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const initialWp = searchParams.get('wp') || '';
 
@@ -822,5 +822,19 @@ export default function ProductsPage() {
         </form>
       </Modal>
     </AppShell>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-ink-muted">
+          Loading wallpaper catalog...
+        </div>
+      }
+    >
+      <ProductsContent />
+    </React.Suspense>
   );
 }

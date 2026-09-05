@@ -28,6 +28,7 @@ export interface ISettings extends Document {
   deletePasswordHash?: string;
   hidePasswordHash?: string;
   paymentPasswordHash?: string;
+  supplierPasswordHash?: string;
 
   reminderAckDate?: Date;
   isDemo?: boolean;
@@ -51,10 +52,14 @@ const SettingsSchema = new Schema<ISettings>(
       trim: true,
     },
     logo: { type: String, default: '' },
-    address: { type: String, default: 'Lahore, Pakistan', trim: true },
-    phone: { type: String, default: '', trim: true },
-    whatsapp: { type: String, default: '', trim: true },
-    email: { type: String, default: '', trim: true },
+    address: {
+      type: String,
+      default: 'College road near five star naan shop, Lahore Punjab Pakistan',
+      trim: true,
+    },
+    phone: { type: String, default: '+92 303 4333227', trim: true },
+    whatsapp: { type: String, default: '+92 303 4333227', trim: true },
+    email: { type: String, default: 'info@umarusmanwallpaper.com', trim: true },
     ntn: { type: String, default: '', trim: true },
     strn: { type: String, default: '', trim: true },
 
@@ -66,10 +71,17 @@ const SettingsSchema = new Schema<ISettings>(
       type: String,
       default: 'Thank you for choosing Umar Usman Interior. High Quality Wallpapers & Interior Solutions.',
     },
-    sellerName: { type: String, default: 'Umar Usman', trim: true },
+    sellerName: { type: String, default: 'Umar Nawaz', trim: true },
     invoiceInstructions: {
       type: String,
-      default: 'Goods once sold will not be returned or exchanged after 7 days. Installed rolls cannot be refunded.',
+      default: `1. Payment 100% advance in cash.
+2. Imported items cannot be reserved without advance payment.
+3. 10% handling charges apply on approved returns.
+4. No return or exchange on by-order products.
+5. Wall preparation and plaster smoothness is mandatory prior to pasting.
+6. Site must be clean and prepared before wallpaper installation starts.
+7. Complaints after final installation signoff will be charged.
+8. Client must provide a stable ladder or scaffolding at the site.`,
     },
 
     emailjsServiceId: { type: String, default: '' },
@@ -80,6 +92,7 @@ const SettingsSchema = new Schema<ISettings>(
     deletePasswordHash: { type: String },
     hidePasswordHash: { type: String },
     paymentPasswordHash: { type: String },
+    supplierPasswordHash: { type: String },
 
     reminderAckDate: { type: Date },
     isDemo: { type: Boolean, default: false },

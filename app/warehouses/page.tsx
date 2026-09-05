@@ -1,12 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { Warehouse as WarehouseIcon, Plus, Edit2, Trash2, Layers, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
+import {
+  Warehouse as WarehouseIcon,
+  Plus,
+  Edit2,
+  Trash2,
+  Layers,
+  RefreshCw,
+  ExternalLink,
+  AlertTriangle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Warehouse {
@@ -15,6 +27,7 @@ interface Warehouse {
   name: string;
   productCount?: number;
   totalStock?: number;
+  lowCount?: number;
 }
 
 export default function WarehousesPage() {
@@ -26,6 +39,9 @@ export default function WarehousesPage() {
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Delete Password Modal
+  const [warehouseToDelete, setWarehouseToDelete] = useState<Warehouse | null>(null);
 
   const fetchWarehouses = async () => {
     setLoading(true);
@@ -86,17 +102,18 @@ export default function WarehousesPage() {
     }
   };
 
-  const handleDelete = async (w: Warehouse) => {
-    if (!confirm(`Are you sure you want to delete warehouse "${w.name}"?`)) return;
+  const confirmDelete = async () => {
+    if (!warehouseToDelete) return;
 
     try {
-      const res = await fetch(`/api/warehouses/${w._id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/warehouses/${warehouseToDelete._id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok || !json.success) {
         toast.error('Cannot delete warehouse', { description: json.error });
         return;
       }
       toast.success('Warehouse deleted successfully');
+      setWarehouseToDelete(null);
       fetchWarehouses();
     } catch {
       toast.error('Failed to delete warehouse');
@@ -104,15 +121,15 @@ export default function WarehousesPage() {
   };
 
   return (
-    <AppShell title="Warehouses">
+    <AppShell title="Warehouses (Home)">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-            Storage Warehouses &amp; Locations
+            Warehouses &amp; Inventory Storage
           </h1>
           <p className="text-xs md:text-sm text-ink-muted">
-            Manage physical godowns and store room locations across Lahore
+            Manage physical godowns and monitor wallpaper rolls distribution
           </p>
         </div>
 
@@ -135,19 +152,13 @@ export default function WarehousesPage() {
           <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
           Loading warehouse locations...
         </div>
-      ) : warehouses.length === 0 ? (
-        <Card className="py-12 text-center text-ink-muted">
-          <WarehouseIcon className="w-10 h-10 mx-auto text-ink-muted/40 mb-2" />
-          <div className="text-sm font-semibold text-ink">No warehouses registered</div>
-          <p className="text-xs mt-1">Add a warehouse or storage unit to allocate stock.</p>
-        </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {warehouses.map((w) => (
             <Card
               key={w._id}
               variant="elevated"
-              className="flex flex-col justify-between hover:border-teal/50 transition-colors"
+              className="flex flex-col justify-between hover:border-teal/50 transition-all hover:shadow-warm-md"
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -157,41 +168,96 @@ export default function WarehousesPage() {
                   <WarehouseIcon className="w-4 h-4 text-ink-muted" />
                 </div>
 
-                <h3 className="text-base font-bold text-ink mb-1">{w.name}</h3>
-                <div className="space-y-1 text-xs text-ink-muted">
-                  <div className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-teal" />
-                    <span>{w.productCount || 0} Distinct Products</span>
+                <Link href={`/warehouses/${w._id}`} className="group">
+                  <h3 className="text-base font-bold text-ink group-hover:text-teal transition-colors flex items-center gap-1.5 mb-1">
+                    <span>{w.name}</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </h3>
+                </Link>
+
+                <div className="space-y-1.5 text-xs text-ink-muted mt-2">
+                  <div className="flex items-center justify-between">
+                    <span>Assigned Wallpapers:</span>
+                    <span className="font-semibold text-ink">{w.productCount || 0}</span>
                   </div>
-                  <div className="font-semibold text-ink">
-                    {(w.totalStock || 0).toLocaleString()} Total Rolls in Storage
+                  <div className="flex items-center justify-between">
+                    <span>Total Quantity:</span>
+                    <span className="font-bold text-ink font-mono">
+                      {(w.totalStock || 0).toLocaleString()} Rolls
+                    </span>
                   </div>
+                  {(w.lowCount || 0) > 0 && (
+                    <div className="flex items-center justify-between text-amber-700 font-medium">
+                      <span>Low/Out Stock:</span>
+                      <span>{w.lowCount} warning(s)</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-warm-borderLight mt-4 flex items-center justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => handleEdit(w)}
-                >
-                  <Edit2 className="w-3.5 h-3.5 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-status-danger hover:bg-status-dangerLight"
-                  onClick={() => handleDelete(w)}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" />
-                  Delete
-                </Button>
+              <div className="pt-3 border-t border-warm-borderLight mt-4 flex items-center justify-between">
+                <Link href={`/warehouses/${w._id}`}>
+                  <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+                    View Stock
+                  </Button>
+                </Link>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => handleEdit(w)}
+                    title="Edit name"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-status-danger hover:bg-status-dangerLight"
+                    onClick={() => setWarehouseToDelete(w)}
+                    title="Delete warehouse (Protected)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
+
+          {/* + Add Warehouse Card */}
+          <button
+            type="button"
+            onClick={() => {
+              setEditingWarehouse(null);
+              setName('');
+              setIsOpen(true);
+            }}
+            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-warm-border rounded-2xl hover:border-teal hover:bg-paper/60 transition-all text-center group min-h-[170px]"
+          >
+            <div className="w-10 h-10 rounded-full bg-teal-subtle text-teal flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+              <Plus className="w-5 h-5" />
+            </div>
+            <span className="text-sm font-bold text-ink group-hover:text-teal">
+              + Add Warehouse
+            </span>
+            <span className="text-[11px] text-ink-muted mt-0.5">
+              Register a new godown or storage unit
+            </span>
+          </button>
         </div>
+      )}
+
+      {/* Delete Password Modal */}
+      {warehouseToDelete && (
+        <PasswordPromptModal
+          isOpen={Boolean(warehouseToDelete)}
+          onClose={() => setWarehouseToDelete(null)}
+          onSuccess={confirmDelete}
+          type="delete"
+          title={`Delete Warehouse ${warehouseToDelete.name}`}
+          description={`Admin Delete Protection password is required to delete warehouse "${warehouseToDelete.name}" (${warehouseToDelete.code}).`}
+        />
       )}
 
       {/* Add / Edit Warehouse Modal */}

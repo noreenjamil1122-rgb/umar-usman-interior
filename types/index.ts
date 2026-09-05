@@ -24,6 +24,7 @@ export interface CustomerType {
   userId: string;
   code: string;
   name: string;
+  type: 'customer' | 'supplier';
   mobile: string;
   whatsapp?: string;
   alt?: string;
@@ -55,6 +56,7 @@ export interface WarehouseType {
 export interface ProductType {
   _id: string;
   userId: string;
+  code?: string;
   bookId?: string | BookType;
   warehouseId?: string | WarehouseType;
   wp: string;
@@ -75,12 +77,13 @@ export interface ProductType {
 }
 
 export interface InvoiceItemType {
-  productId: string;
+  productId?: string;
   wp: string;
   design: string;
   qty: number;
   rate: number;
   amount: number;
+  isCustom?: boolean;
 }
 
 export interface InvoiceType {
@@ -97,6 +100,11 @@ export interface InvoiceType {
   paid: number;
   remaining: number;
   method: string;
+  reference?: string;
+  sellerName?: string;
+  sellerContact?: string;
+  terms?: string;
+  jobStatus?: string;
   notes?: string;
   createdAt: string;
 }
@@ -126,6 +134,21 @@ export interface StockHistoryType {
   reference?: string;
 }
 
+export interface ActivityLogType {
+  _id: string;
+  userId: string;
+  dateTime: string;
+  type:
+    | 'Stock Minus'
+    | 'Customer Deleted'
+    | 'Warehouse Deleted'
+    | 'Book Deleted'
+    | 'Wallpaper Deleted'
+    | 'Invoice Edited';
+  detail: string;
+  qty?: number;
+}
+
 export interface SettingsType {
   _id?: string;
   userId: string;
@@ -148,6 +171,14 @@ export interface SettingsType {
   emailjsTemplateId?: string;
   emailjsPublicKey?: string;
   emailjsToEmail?: string;
+  hasDeletePassword?: boolean;
+  hasHidePassword?: boolean;
+  hasPaymentPassword?: boolean;
+  hasSupplierPassword?: boolean;
+  deletePasswordHash?: string;
+  hidePasswordHash?: string;
+  paymentPasswordHash?: string;
+  supplierPasswordHash?: string;
   reminderAckDate?: string;
 }
 
@@ -157,3 +188,4 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   message?: string;
 }
+

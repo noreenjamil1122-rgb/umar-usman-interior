@@ -4,18 +4,19 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
-  FileText,
-  Layers,
-  Users,
-  Menu,
-  X,
-  BookOpen,
   Warehouse,
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  FileText,
   CreditCard,
-  History,
+  Package,
+  BookMarked,
+  BarChart3,
   Settings,
   LogOut,
+  Menu,
+  X,
   Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -26,21 +27,23 @@ interface MobileNavProps {
 }
 
 const quickNav = [
-  { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Warehouses', href: '/warehouses', icon: Warehouse },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Invoices', href: '/invoices', icon: FileText },
-  { label: 'Products', href: '/products', icon: Layers },
+  { label: 'Stock', href: '/stock', icon: Package },
   { label: 'Customers', href: '/customers', icon: Users },
 ];
 
 const allNavItems = [
+  { label: 'Warehouses', href: '/warehouses', icon: Warehouse },
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Customers', href: '/customers', icon: Users },
-  { label: 'Products', href: '/products', icon: Layers },
-  { label: 'Books', href: '/books', icon: BookOpen },
-  { label: 'Warehouses', href: '/warehouses', icon: Warehouse },
+  { label: 'Wallpaper Books', href: '/books', icon: BookOpen },
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Payments', href: '/payments', icon: CreditCard },
-  { label: 'Stock History', href: '/stock-history', icon: History },
+  { label: 'Stock', href: '/stock', icon: Package },
+  { label: 'Customer Ledger', href: '/ledger', icon: BookMarked },
+  { label: 'Reports', href: '/reports', icon: BarChart3 },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 

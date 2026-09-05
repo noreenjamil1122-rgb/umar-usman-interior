@@ -7,6 +7,8 @@ import StockHistory from '@/models/StockHistory';
 import { ProductSchema } from '@/lib/validations';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
 
+import { logActivity } from '@/lib/activity';
+
 interface RouteContext {
   params: { id: string };
 }
@@ -76,11 +78,12 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     const productId = new mongoose.Types.ObjectId(params.id);
 
     const data = validation.data;
+    const designName = data.design?.trim() || data.wp.trim();
 
     // Notice: stock cannot be modified directly via general PUT; stock modifications must use the /stock endpoint or adjustments
     const updateData = {
-      wp: data.wp,
-      design: data.design,
+      wp: data.wp.trim(),
+      design: designName,
       brand: data.brand,
       category: data.category,
       color: data.color,
@@ -139,6 +142,12 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
     }
+
+    await logActivity({
+      userId: userObjectId,
+      type: 'Wallpaper Deleted',
+      detail: `Wallpaper deleted: WP ${deleted.wp}${deleted.code ? ` (${deleted.code})` : ''}`,
+    });
 
     return NextResponse.json({
       success: true,

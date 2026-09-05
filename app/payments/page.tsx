@@ -140,6 +140,33 @@ export default function PaymentsPage() {
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredPayments = payments.filter((p) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const custName = p.customerId?.name?.toLowerCase() || '';
+    const custCode = p.customerId?.code?.toLowerCase() || '';
+    const custMobile = p.customerId?.mobile?.toLowerCase() || '';
+    const invNum = p.invoiceId?.number?.toLowerCase() || '';
+    const methodStr = p.method?.toLowerCase() || '';
+    const refStr = p.reference?.toLowerCase() || '';
+    return (
+      custName.includes(q) ||
+      custCode.includes(q) ||
+      custMobile.includes(q) ||
+      invNum.includes(q) ||
+      methodStr.includes(q) ||
+      refStr.includes(q)
+    );
+  });
+
+  const totalReceived = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayReceived = payments
+    .filter((p) => p.date && p.date.startsWith(todayStr))
+    .reduce((acc, p) => acc + (p.amount || 0), 0);
+
   return (
     <AppShell title="Payment Ledger">
       {/* Top Header */}
@@ -153,21 +180,75 @@ export default function PaymentsPage() {
           </p>
         </div>
 
-        <Button
-          variant="teal"
-          size="sm"
-          onClick={() => {
-            setSelectedCustId('');
-            setSelectedInvoiceId('');
-            setAmount(0);
-            setReference('');
-            setPassword('');
-            setIsOpen(true);
-          }}
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          Record Payment
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchPayments}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="teal"
+            size="sm"
+            onClick={() => {
+              setSelectedCustId('');
+              setSelectedInvoiceId('');
+              setAmount(0);
+              setReference('');
+              setPassword('');
+              setIsOpen(true);
+            }}
+            leftIcon={<Plus className="w-4 h-4" />}
+          >
+            Record Payment
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-paper border-warm-border">
+          <CardContent className="p-4">
+            <span className="text-[11px] uppercase font-bold text-ink-muted">Total Collections</span>
+            <div className="text-2xl font-extrabold text-teal mt-1">
+              {formatCurrency(totalReceived)}
+            </div>
+            <p className="text-[11px] text-ink-muted mt-1">{payments.length} total transactions recorded</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-paper border-warm-border">
+          <CardContent className="p-4">
+            <span className="text-[11px] uppercase font-bold text-ink-muted">Today&apos;s Collection</span>
+            <div className="text-2xl font-extrabold text-status-success mt-1">
+              {formatCurrency(todayReceived)}
+            </div>
+            <p className="text-[11px] text-ink-muted mt-1">Cash received today</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-paper border-warm-border">
+          <CardContent className="p-4">
+            <span className="text-[11px] uppercase font-bold text-ink-muted">Active Customers</span>
+            <div className="text-2xl font-extrabold text-ink mt-1">
+              {customers.length}
+            </div>
+            <p className="text-[11px] text-ink-muted mt-1">Accounts registered</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search Input Bar */}
+      <div className="mb-4">
+        <Input
+          placeholder="Search by customer name, phone, code, invoice #, method or reference note..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          leftIcon={<Search className="w-4 h-4" />}
+          className="max-w-md bg-paper-light"
+        />
       </div>
 
       {/* Payments Table */}
@@ -178,12 +259,14 @@ export default function PaymentsPage() {
               <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
               Loading payments ledger...
             </div>
-          ) : payments.length === 0 ? (
+          ) : filteredPayments.length === 0 ? (
             <div className="py-16 text-center text-ink-muted space-y-3">
               <CreditCard className="w-12 h-12 mx-auto text-ink-muted/40" />
-              <div className="text-base font-semibold text-ink">No payments recorded</div>
+              <div className="text-base font-semibold text-ink">No payments found</div>
               <p className="text-xs max-w-sm mx-auto">
-                Payments recorded against customer accounts or invoices will appear in this ledger.
+                {searchQuery
+                  ? 'No payment matching your search query. Try clearing the search box.'
+                  : 'Payments recorded against customer accounts or invoices will appear in this ledger.'}
               </p>
             </div>
           ) : (
@@ -200,7 +283,7 @@ export default function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
-                  {payments.map((p) => (
+                  {filteredPayments.map((p) => (
                     <tr key={p._id} className="hover:bg-paper transition-colors">
                       <td className="py-3 px-4 text-ink-muted">{formatDate(p.date)}</td>
                       <td className="py-3 px-4 font-bold text-ink">
@@ -211,9 +294,12 @@ export default function PaymentsPage() {
                       </td>
                       <td className="py-3 px-4">
                         {p.invoiceId ? (
-                          <span className="font-mono font-bold text-teal bg-teal-subtle px-2 py-0.5 rounded">
+                          <a
+                            href={`/invoices/${p.invoiceId._id}`}
+                            className="font-mono font-bold text-teal bg-teal-subtle hover:bg-teal hover:text-white transition-colors px-2 py-0.5 rounded inline-block"
+                          >
                             {p.invoiceId.number}
-                          </span>
+                          </a>
                         ) : (
                           <span className="text-ink-muted text-[11px]">General Ledger Credit</span>
                         )}

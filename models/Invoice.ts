@@ -1,12 +1,13 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IInvoiceItem {
-  productId: mongoose.Types.ObjectId;
+  productId?: mongoose.Types.ObjectId;
   wp: string;
   design: string;
   qty: number;
   rate: number;
   amount: number;
+  isCustom?: boolean;
 }
 
 export interface IInvoice extends Document {
@@ -25,6 +26,8 @@ export interface IInvoice extends Document {
   method: string;
   jobStatus: string;
   reference?: string;
+  sellerName?: string;
+  sellerContact?: string;
   terms?: string;
   createdByRole?: string;
   createdByName?: string;
@@ -42,10 +45,11 @@ const InvoiceItemSchema = new Schema<IInvoiceItem>(
       required: false,
     },
     wp: { type: String, required: true, trim: true },
-    design: { type: String, required: true, trim: true },
+    design: { type: String, default: '', trim: true },
     qty: { type: Number, required: true, min: 1 },
     rate: { type: Number, required: true, min: 0 },
     amount: { type: Number, required: true, min: 0 },
+    isCustom: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -126,6 +130,14 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: String,
       trim: true,
       default: '0',
+    },
+    sellerName: {
+      type: String,
+      trim: true,
+    },
+    sellerContact: {
+      type: String,
+      trim: true,
     },
     terms: {
       type: String,

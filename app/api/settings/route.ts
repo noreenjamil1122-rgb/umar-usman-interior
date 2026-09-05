@@ -37,9 +37,11 @@ export async function GET(request: NextRequest) {
       deletePasswordHash: undefined,
       hidePasswordHash: undefined,
       paymentPasswordHash: undefined,
+      supplierPasswordHash: undefined,
       hasDeletePassword: Boolean(settings.deletePasswordHash),
       hasHidePassword: Boolean(settings.hidePasswordHash),
       hasPaymentPassword: Boolean(settings.paymentPasswordHash),
+      hasSupplierPassword: Boolean(settings.supplierPasswordHash),
     };
 
     return NextResponse.json({
@@ -100,7 +102,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// POST endpoint for updating sensitive action passwords
+// POST endpoint for updating or removing sensitive action passwords
 export async function POST(request: NextRequest) {
   if (!verifyCsrf(request)) {
     return csrfErrorResponse();
@@ -113,11 +115,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, newPassword } = body; // type: 'delete' | 'hide' | 'payment'
+    const { type, newPassword, action } = body; // type: 'delete' | 'hide' | 'payment' | 'supplier'
 
-    if (!['delete', 'hide', 'payment'].includes(type) || !newPassword || newPassword.length < 4) {
+    if (!['delete', 'hide', 'payment', 'supplier'].includes(type)) {
       return NextResponse.json(
-        { success: false, error: 'Password must be at least 4 characters' },
+        { success: false, error: 'Invalid password protection type' },
         { status: 400 }
       );
     }
@@ -125,13 +127,35 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const userObjectId = new mongoose.Types.ObjectId(session.userId);
 
-    const hashed = await hashPassword(newPassword);
     const updateField =
       type === 'delete'
         ? 'deletePasswordHash'
         : type === 'hide'
           ? 'hidePasswordHash'
-          : 'paymentPasswordHash';
+          : type === 'payment'
+            ? 'paymentPasswordHash'
+            : 'supplierPasswordHash';
+
+    if (action === 'remove') {
+      await Settings.updateOne(
+        { userId: userObjectId },
+        { $unset: { [updateField]: 1 } },
+        { upsert: true }
+      );
+      return NextResponse.json({
+        success: true,
+        message: `${type.toUpperCase()} protection removed successfully`,
+      });
+    }
+
+    if (!newPassword || newPassword.length < 4) {
+      return NextResponse.json(
+        { success: false, error: 'Password must be at least 4 characters' },
+        { status: 400 }
+      );
+    }
+
+    const hashed = await hashPassword(newPassword);
 
     await Settings.updateOne(
       { userId: userObjectId },

@@ -31,10 +31,14 @@ export default function HomePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.authenticated) {
-          router.replace('/dashboard');
+          router.replace('/warehouses');
+        } else {
+          router.replace('/login');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        router.replace('/login');
+      });
   }, [router]);
 
   const triggerToast = () => {

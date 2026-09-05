@@ -22,23 +22,39 @@ export async function GET(request: NextRequest) {
       .sort({ code: 1 })
       .lean();
 
-    // Attach product counts per warehouse
+    // Attach product counts and low stock counts per warehouse
     const counts = await Product.aggregate([
       { $match: { userId: userObjectId, warehouseId: { $ne: null } } },
-      { $group: { _id: '$warehouseId', count: { $sum: 1 }, totalStock: { $sum: '$stock' } } },
+      {
+        $group: {
+          _id: '$warehouseId',
+          count: { $sum: 1 },
+          totalStock: { $sum: '$stock' },
+          lowCount: {
+            $sum: {
+              $cond: [{ $lte: ['$stock', '$minStock'] }, 1, 0],
+            },
+          },
+        },
+      },
     ]);
 
-    const countMap = new Map<string, { count: number; totalStock: number }>();
+    const countMap = new Map<string, { count: number; totalStock: number; lowCount: number }>();
     counts.forEach((c) =>
-      countMap.set(c._id.toString(), { count: c.count, totalStock: c.totalStock })
+      countMap.set(c._id.toString(), {
+        count: c.count,
+        totalStock: c.totalStock,
+        lowCount: c.lowCount || 0,
+      })
     );
 
     const warehousesWithCounts = warehouses.map((w) => {
-      const stat = countMap.get(w._id.toString()) || { count: 0, totalStock: 0 };
+      const stat = countMap.get(w._id.toString()) || { count: 0, totalStock: 0, lowCount: 0 };
       return {
         ...w,
         productCount: stat.count,
         totalStock: stat.totalStock,
+        lowCount: stat.lowCount,
       };
     });
 

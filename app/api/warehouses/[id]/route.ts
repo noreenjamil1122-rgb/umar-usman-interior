@@ -7,8 +7,36 @@ import Product from '@/models/Product';
 import { WarehouseSchema } from '@/lib/validations';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
 
+import { logActivity } from '@/lib/activity';
+
 interface RouteContext {
   params: { id: string };
+}
+
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  try {
+    const session = await getAuthSession(request);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await connectToDatabase();
+    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const warehouseId = new mongoose.Types.ObjectId(params.id);
+
+    const warehouse = await Warehouse.findOne({ _id: warehouseId, userId: userObjectId }).lean();
+    if (!warehouse) {
+      return NextResponse.json({ success: false, error: 'Warehouse not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: warehouse,
+    });
+  } catch (error) {
+    console.error('Warehouse GET error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch warehouse' }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest, { params }: RouteContext) {
@@ -88,6 +116,12 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Warehouse not found' }, { status: 404 });
     }
+
+    await logActivity({
+      userId: userObjectId,
+      type: 'Warehouse Deleted',
+      detail: `Warehouse deleted: ${deleted.name} (${deleted.code})`,
+    });
 
     return NextResponse.json({
       success: true,

@@ -20,19 +20,41 @@ export async function GET(request: NextRequest) {
 
     const books = await Book.find({ userId: userObjectId }).sort({ code: 1 }).lean();
 
-    // Attach product counts per book
+    // Attach product counts, total stock, and low stock warnings per book
     const counts = await Product.aggregate([
       { $match: { userId: userObjectId, bookId: { $ne: null } } },
-      { $group: { _id: '$bookId', count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: '$bookId',
+          count: { $sum: 1 },
+          totalStock: { $sum: '$stock' },
+          lowCount: {
+            $sum: {
+              $cond: [{ $lte: ['$stock', '$minStock'] }, 1, 0],
+            },
+          },
+        },
+      },
     ]);
 
-    const countMap = new Map<string, number>();
-    counts.forEach((c) => countMap.set(c._id.toString(), c.count));
+    const countMap = new Map<string, { count: number; totalStock: number; lowCount: number }>();
+    counts.forEach((c) =>
+      countMap.set(c._id.toString(), {
+        count: c.count,
+        totalStock: c.totalStock,
+        lowCount: c.lowCount || 0,
+      })
+    );
 
-    const booksWithCounts = books.map((b) => ({
-      ...b,
-      productCount: countMap.get(b._id.toString()) || 0,
-    }));
+    const booksWithCounts = books.map((b) => {
+      const stat = countMap.get(b._id.toString()) || { count: 0, totalStock: 0, lowCount: 0 };
+      return {
+        ...b,
+        productCount: stat.count,
+        totalStock: stat.totalStock,
+        lowCount: stat.lowCount,
+      };
+    });
 
     return NextResponse.json({
       success: true,

@@ -6,24 +6,40 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { formatDateTime } from '@/lib/utils';
 import {
-  Settings as SettingsIcon,
   Building2,
   FileText,
-  Mail,
   Shield,
   Database,
   Save,
   Lock,
   Sparkles,
   Trash2,
-  CheckCircle2,
   RefreshCw,
+  Clock,
+  Download,
+  Mail,
+  User,
+  Key,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface ActivityLogItem {
+  _id: string;
+  action: string;
+  detail: string;
+  qty?: number;
+  userRole?: string;
+  userName?: string;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'business' | 'invoice' | 'emailjs' | 'security' | 'demo'>('business');
+  const [activeTab, setActiveTab] = useState<
+    'business' | 'invoice' | 'security' | 'activity' | 'backup' | 'account'
+  >('business');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -31,10 +47,10 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({
     businessName: 'Umar Usman Interior',
     logo: '',
-    address: 'Main Market, Lahore, Pakistan',
-    phone: '',
-    whatsapp: '',
-    email: '',
+    address: 'College road near five star naan shop, Lahore Punjab Pakistan',
+    phone: '0300-4131532',
+    whatsapp: '0307-4333227',
+    email: 'info@umarusmanwallpaper.com',
     ntn: '',
     strn: '',
     invoicePrefix: 'INV',
@@ -42,8 +58,17 @@ export default function SettingsPage() {
     taxOn: false,
     taxRate: 0,
     footer: 'Thank you for choosing Umar Usman Interior. Premium Wallpapers & Interior Solutions.',
-    sellerName: 'Umar Usman',
-    invoiceInstructions: 'Goods once cut or installed will not be exchanged or returned. Claims valid within 7 days.',
+    sellerName: 'Umar Nawaz',
+    sellerContact: '0300-4131532',
+    terms: 'Custom',
+    invoiceInstructions: `1. Payment terms 100% advance in cash.
+2. All items are imported, hence won't be reserved for anyone.
+3. 10% handling shall be charged on returns.
+4. We do not accept returns of by order products.
+5. Wall preparation is mandatory for wall paper installation.
+6. Site should be clear and clean before installation.
+7. All complaints will be charged after installation.
+8. Client is responsible to provide ladder, scaffolding or any necessary item for installation.`,
     emailjsServiceId: '',
     emailjsTemplateId: '',
     emailjsPublicKey: '',
@@ -51,23 +76,44 @@ export default function SettingsPage() {
     hasDeletePassword: false,
     hasHidePassword: false,
     hasPaymentPassword: false,
+    hasSupplierPassword: false,
   });
 
-  // Password fields
-  const [pwdType, setPwdType] = useState<'delete' | 'hide' | 'payment'>('payment');
+  // User session info
+  const [userEmail, setUserEmail] = useState('');
+  const [userRole, setUserRole] = useState('admin');
+
+  // Security password fields
+  const [pwdType, setPwdType] = useState<'delete' | 'hide' | 'payment' | 'supplier'>('delete');
   const [newPassword, setNewPassword] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
 
-  // Demo state
-  const [demoLoading, setDemoLoading] = useState(false);
+  // Activity logs
+  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  // Change account password state
+  const [currentAccountPwd, setCurrentAccountPwd] = useState('');
+  const [newAccountPwd, setNewAccountPwd] = useState('');
+  const [confirmAccountPwd, setConfirmAccountPwd] = useState('');
+  const [acctPwdLoading, setAcctPwdLoading] = useState(false);
 
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/settings');
-      const json = await res.json();
-      if (json.success && json.data) {
-        setSettings((prev) => ({ ...prev, ...json.data }));
+      const [sRes, aRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/auth/session'),
+      ]);
+
+      const [sData, aData] = await Promise.all([sRes.json(), aRes.json()]);
+
+      if (sData.success && sData.data) {
+        setSettings((prev) => ({ ...prev, ...sData.data }));
+      }
+      if (aData.authenticated && aData.user) {
+        setUserEmail(aData.user.email || '');
+        setUserRole(aData.user.role || 'admin');
       }
     } catch {
       toast.error('Could not load settings');
@@ -76,9 +122,30 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchActivityLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch('/api/activity-log');
+      const json = await res.json();
+      if (json.success) {
+        setActivityLogs(json.data || []);
+      }
+    } catch {
+      toast.error('Could not load activity log');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      fetchActivityLogs();
+    }
+  }, [activeTab]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,131 +204,139 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSeedDemo = async () => {
-    setDemoLoading(true);
+  const handleRemovePassword = async (type: 'delete' | 'hide' | 'payment' | 'supplier') => {
     try {
-      const res = await fetch('/api/settings/demo', { method: 'POST' });
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, newPassword: '' }),
+      });
       const json = await res.json();
-      if (!res.ok || !json.success) {
-        toast.error('Could not seed demo data', { description: json.error });
-        return;
+      if (json.success) {
+        toast.success(`${type.toUpperCase()} protection removed`);
+        fetchSettings();
       }
-      toast.success(json.message);
     } catch {
-      toast.error('Failed to seed demo');
-    } finally {
-      setDemoLoading(false);
+      toast.error('Failed to remove password protection');
     }
   };
 
-  const handleClearDemo = async () => {
-    if (!confirm('Are you sure you want to remove demo records? Real business data will be safely kept.')) {
+  const handleChangeAccountPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newAccountPwd !== confirmAccountPwd) {
+      toast.error('New passwords do not match');
       return;
     }
-    setDemoLoading(true);
+
+    setAcctPwdLoading(true);
     try {
-      const res = await fetch('/api/settings/demo', { method: 'DELETE' });
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: currentAccountPwd,
+          newPassword: newAccountPwd,
+        }),
+      });
+
       const json = await res.json();
       if (!res.ok || !json.success) {
-        toast.error('Could not clear demo data', { description: json.error });
+        toast.error('Password change failed', { description: json.error });
+        setAcctPwdLoading(false);
         return;
       }
-      toast.success(json.message);
+
+      toast.success('Account password updated successfully');
+      setCurrentAccountPwd('');
+      setNewAccountPwd('');
+      setConfirmAccountPwd('');
     } catch {
-      toast.error('Failed to clear demo');
+      toast.error('Network error during password update');
     } finally {
-      setDemoLoading(false);
+      setAcctPwdLoading(false);
     }
+  };
+
+  const exportActivityLogCsv = () => {
+    if (activityLogs.length === 0) {
+      toast.info('No activity logs to export');
+      return;
+    }
+
+    const headers = ['Date & Time', 'Action', 'Quantity', 'Detail', 'Role', 'User'];
+    const rows = activityLogs.map((log) => [
+      `"${new Date(log.createdAt).toLocaleString()}"`,
+      `"${log.action}"`,
+      log.qty || '',
+      `"${log.detail.replace(/"/g, '""')}"`,
+      `"${log.userRole || ''}"`,
+      `"${log.userName || ''}"`,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Activity_Log_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
-    <AppShell title="Business Settings">
+    <AppShell title="Settings">
       {/* Top Header */}
       <div className="mb-6">
         <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-          System Configuration &amp; Business Profile
+          Settings &amp; Administration
         </h1>
         <p className="text-xs md:text-sm text-ink-muted">
-          Customize invoice templates, EmailJS notifications, security passwords, and demo data
+          Manage business identity, security passwords, audit trail, and backups
         </p>
       </div>
 
       {/* Tabs Navigation */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 border-b border-warm-border">
-        <button
-          onClick={() => setActiveTab('business')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'business'
-              ? 'bg-teal text-white shadow-warm'
-              : 'text-ink-muted hover:text-ink hover:bg-paper-dark/60'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>Business Profile</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('invoice')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'invoice'
-              ? 'bg-teal text-white shadow-warm'
-              : 'text-ink-muted hover:text-ink hover:bg-paper-dark/60'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Invoice &amp; Tax</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('emailjs')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'emailjs'
-              ? 'bg-teal text-white shadow-warm'
-              : 'text-ink-muted hover:text-ink hover:bg-paper-dark/60'
-          }`}
-        >
-          <Mail className="w-4 h-4" />
-          <span>EmailJS Setup</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'security'
-              ? 'bg-teal text-white shadow-warm'
-              : 'text-ink-muted hover:text-ink hover:bg-paper-dark/60'
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          <span>Security Passwords</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('demo')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'demo'
-              ? 'bg-teal text-white shadow-warm'
-              : 'text-ink-muted hover:text-ink hover:bg-paper-dark/60'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>Demo Data</span>
-        </button>
+        {[
+          { id: 'business', label: 'Business Profile', icon: Building2 },
+          { id: 'invoice', label: 'Invoice & Terms', icon: FileText },
+          { id: 'security', label: 'Security Passwords', icon: Shield },
+          { id: 'activity', label: 'Activity Audit Log', icon: Clock },
+          { id: 'backup', label: 'Backup & Export', icon: Download },
+          { id: 'account', label: 'Account & Login', icon: User },
+        ].map((t) => {
+          const Icon = t.icon;
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id as any)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                isActive
+                  ? 'bg-teal text-white shadow-warm'
+                  : 'text-ink-muted hover:text-ink hover:bg-paper'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
         <div className="py-24 text-center text-xs text-ink-muted flex items-center justify-center">
           <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
-          Loading settings...
+          Loading configuration...
         </div>
       ) : (
-        <div className="max-w-3xl">
-          {/* Business Profile Tab */}
+        <div className="max-w-4xl">
+          {/* TAB 1: BUSINESS PROFILE */}
           {activeTab === 'business' && (
             <Card>
               <CardHeader>
-                <CardTitle>Business Information</CardTitle>
-                <CardDescription>Displayed on customer invoices and reports</CardDescription>
+                <CardTitle>Business Profile</CardTitle>
+                <CardDescription>Primary trading name and contact info displayed on printouts</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSaveSettings} className="space-y-4">
@@ -275,50 +350,65 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
+                      label="Seller / Owner Name"
+                      type="text"
+                      required
+                      placeholder="e.g. Umar Nawaz"
+                      value={settings.sellerName}
+                      onChange={(e) => setSettings({ ...settings, sellerName: e.target.value })}
+                    />
+                    <Input
+                      label="Seller Contact"
+                      type="text"
+                      required
+                      placeholder="0300-4131532"
+                      value={settings.sellerContact}
+                      onChange={(e) => setSettings({ ...settings, sellerContact: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
                       label="Phone"
                       type="text"
-                      placeholder="0300-1234567"
+                      placeholder="0300-4131532"
                       value={settings.phone}
                       onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
                     />
                     <Input
                       label="WhatsApp"
                       type="text"
-                      placeholder="0300-1234567"
+                      placeholder="0307-4333227"
                       value={settings.whatsapp}
                       onChange={(e) => setSettings({ ...settings, whatsapp: e.target.value })}
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input
-                      label="Email"
-                      type="email"
-                      placeholder="info@umarusman.com"
-                      value={settings.email}
-                      onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-                    />
-                    <Input
-                      label="Address"
-                      type="text"
-                      placeholder="Main Market, Lahore, Pakistan"
-                      value={settings.address}
-                      onChange={(e) => setSettings({ ...settings, address: e.target.value })}
-                    />
-                  </div>
+                  <Input
+                    label="Email"
+                    type="email"
+                    placeholder="info@umarusmanwallpaper.com"
+                    value={settings.email}
+                    onChange={(e) => setSettings({ ...settings, email: e.target.value })}
+                  />
+
+                  <Input
+                    label="Shop / Warehouse Address"
+                    type="text"
+                    value={settings.address}
+                    onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                  />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="NTN (Tax Number)"
                       type="text"
-                      placeholder="National Tax Number"
                       value={settings.ntn}
                       onChange={(e) => setSettings({ ...settings, ntn: e.target.value })}
                     />
                     <Input
                       label="STRN (Sales Tax Number)"
                       type="text"
-                      placeholder="Sales Tax Registration Number"
                       value={settings.strn}
                       onChange={(e) => setSettings({ ...settings, strn: e.target.value })}
                     />
@@ -326,7 +416,7 @@ export default function SettingsPage() {
 
                   <div className="pt-4 flex justify-end">
                     <Button type="submit" variant="teal" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
-                      Save Profile
+                      Save Business Info
                     </Button>
                   </div>
                 </form>
@@ -334,12 +424,12 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {/* Invoice & Tax Tab */}
+          {/* TAB 2: INVOICE & TERMS */}
           {activeTab === 'invoice' && (
             <Card>
               <CardHeader>
-                <CardTitle>Invoice Configuration</CardTitle>
-                <CardDescription>Default numbering, discounts, and print terms</CardDescription>
+                <CardTitle>Invoice Template &amp; Golden Rules</CardTitle>
+                <CardDescription>Default terms, tax rates, and printable instructions</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSaveSettings} className="space-y-4">
@@ -347,7 +437,6 @@ export default function SettingsPage() {
                     <Input
                       label="Invoice Prefix"
                       type="text"
-                      required
                       value={settings.invoicePrefix}
                       onChange={(e) => setSettings({ ...settings, invoicePrefix: e.target.value })}
                     />
@@ -357,58 +446,37 @@ export default function SettingsPage() {
                       min="0"
                       max="100"
                       value={settings.defaultDiscount}
-                      onChange={(e) => setSettings({ ...settings, defaultDiscount: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setSettings({ ...settings, defaultDiscount: Number(e.target.value) })
+                      }
                     />
                     <Input
-                      label="Seller / Signee Name"
-                      type="text"
-                      value={settings.sellerName}
-                      onChange={(e) => setSettings({ ...settings, sellerName: e.target.value })}
+                      label="Tax Rate (%)"
+                      type="number"
+                      min="0"
+                      value={settings.taxRate}
+                      onChange={(e) => setSettings({ ...settings, taxRate: Number(e.target.value) })}
                     />
                   </div>
 
-                  <div className="p-4 bg-paper rounded-xl border border-warm-border space-y-3">
-                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-ink">
-                      <input
-                        type="checkbox"
-                        checked={settings.taxOn}
-                        onChange={(e) => setSettings({ ...settings, taxOn: e.target.checked })}
-                        className="rounded text-teal focus:ring-teal"
-                      />
-                      <span>Enable Tax by Default on New Invoices</span>
+                  <div>
+                    <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
+                      Quotation Notes &amp; 8 Instructions
                     </label>
-
-                    {settings.taxOn && (
-                      <div className="max-w-xs">
-                        <Input
-                          label="Default Tax Rate (%)"
-                          type="number"
-                          min="0"
-                          value={settings.taxRate}
-                          onChange={(e) => setSettings({ ...settings, taxRate: Number(e.target.value) })}
-                        />
-                      </div>
-                    )}
+                    <textarea
+                      rows={9}
+                      value={settings.invoiceInstructions}
+                      onChange={(e) => setSettings({ ...settings, invoiceInstructions: e.target.value })}
+                      className="w-full rounded-lg border border-warm-border bg-paper p-3 text-xs text-ink font-mono focus:border-teal focus:outline-none"
+                    />
                   </div>
 
                   <Input
-                    label="Footer Brand Message"
+                    label="Footer Disclaimer"
                     type="text"
                     value={settings.footer}
                     onChange={(e) => setSettings({ ...settings, footer: e.target.value })}
                   />
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
-                      Invoice Instructions / Return Terms
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={settings.invoiceInstructions}
-                      onChange={(e) => setSettings({ ...settings, invoiceInstructions: e.target.value })}
-                      className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-xs text-ink focus:border-teal focus:outline-none"
-                    />
-                  </div>
 
                   <div className="pt-4 flex justify-end">
                     <Button type="submit" variant="teal" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
@@ -420,112 +488,120 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {/* EmailJS Tab */}
-          {activeTab === 'emailjs' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>EmailJS Integration</CardTitle>
-                <CardDescription>
-                  Configure browser email delivery for daily summaries and CSV modules
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveSettings} className="space-y-4">
-                  <Input
-                    label="EmailJS Service ID"
-                    type="text"
-                    placeholder="service_xxxxx"
-                    value={settings.emailjsServiceId}
-                    onChange={(e) => setSettings({ ...settings, emailjsServiceId: e.target.value })}
-                  />
-                  <Input
-                    label="EmailJS Template ID"
-                    type="text"
-                    placeholder="template_xxxxx"
-                    value={settings.emailjsTemplateId}
-                    onChange={(e) => setSettings({ ...settings, emailjsTemplateId: e.target.value })}
-                  />
-                  <Input
-                    label="EmailJS Public Key"
-                    type="text"
-                    placeholder="user_xxxxxxx"
-                    value={settings.emailjsPublicKey}
-                    onChange={(e) => setSettings({ ...settings, emailjsPublicKey: e.target.value })}
-                  />
-                  <Input
-                    label="Recipient Email Address"
-                    type="email"
-                    placeholder="owner@umarusman.com"
-                    value={settings.emailjsToEmail}
-                    onChange={(e) => setSettings({ ...settings, emailjsToEmail: e.target.value })}
-                  />
-
-                  <div className="pt-4 flex justify-end">
-                    <Button type="submit" variant="teal" isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>
-                      Save EmailJS Configuration
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Security Passwords Tab */}
+          {/* TAB 3: SECURITY PASSWORDS (4 PROTECTIONS) */}
           {activeTab === 'security' && (
             <Card>
               <CardHeader>
-                <CardTitle>Sensitive Action Passwords</CardTitle>
+                <CardTitle>Admin Password Protections</CardTitle>
                 <CardDescription>
-                  Require separate bcrypt-verified password confirmation for high-stakes actions
+                  Configure separate passwords to restrict workers from deleting data, unmasking sales figures, updating payments, or viewing supplier invoices.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                  <div className="p-3 bg-paper rounded-xl border border-warm-border">
-                    <div className="text-ink-muted">Payment Password</div>
-                    <div className="font-bold text-ink mt-1">
-                      {settings.hasPaymentPassword ? (
-                        <Badge variant="success" size="sm">Configured</Badge>
-                      ) : (
-                        <Badge variant="neutral" size="sm">Not Set</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-paper rounded-xl border border-warm-border">
-                    <div className="text-ink-muted">Delete Data Password</div>
-                    <div className="font-bold text-ink mt-1">
+                {/* 4 Protections Overview Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+                  {/* 1. Delete */}
+                  <div className="p-3 bg-paper rounded-xl border border-warm-border space-y-1.5">
+                    <div className="font-semibold text-ink">Delete Protection</div>
+                    <div>
                       {settings.hasDeletePassword ? (
-                        <Badge variant="success" size="sm">Configured</Badge>
+                        <Badge variant="success" size="sm">Active</Badge>
                       ) : (
                         <Badge variant="neutral" size="sm">Not Set</Badge>
                       )}
                     </div>
+                    {settings.hasDeletePassword && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePassword('delete')}
+                        className="text-[10px] text-status-danger hover:underline block mx-auto"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
-                  <div className="p-3 bg-paper rounded-xl border border-warm-border">
-                    <div className="text-ink-muted">Hide Data Password</div>
-                    <div className="font-bold text-ink mt-1">
+
+                  {/* 2. Hide */}
+                  <div className="p-3 bg-paper rounded-xl border border-warm-border space-y-1.5">
+                    <div className="font-semibold text-ink">Hide Figures</div>
+                    <div>
                       {settings.hasHidePassword ? (
-                        <Badge variant="success" size="sm">Configured</Badge>
+                        <Badge variant="success" size="sm">Active</Badge>
                       ) : (
                         <Badge variant="neutral" size="sm">Not Set</Badge>
                       )}
                     </div>
+                    {settings.hasHidePassword && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePassword('hide')}
+                        className="text-[10px] text-status-danger hover:underline block mx-auto"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 3. Payment Update */}
+                  <div className="p-3 bg-paper rounded-xl border border-warm-border space-y-1.5">
+                    <div className="font-semibold text-ink">Payment Update</div>
+                    <div>
+                      {settings.hasPaymentPassword ? (
+                        <Badge variant="success" size="sm">Active</Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">Not Set</Badge>
+                      )}
+                    </div>
+                    {settings.hasPaymentPassword && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePassword('payment')}
+                        className="text-[10px] text-status-danger hover:underline block mx-auto"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 4. Supplier Lock */}
+                  <div className="p-3 bg-paper rounded-xl border border-warm-border space-y-1.5">
+                    <div className="font-semibold text-ink">Supplier Lock</div>
+                    <div>
+                      {settings.hasSupplierPassword ? (
+                        <Badge variant="success" size="sm">Active</Badge>
+                      ) : (
+                        <Badge variant="neutral" size="sm">Not Set</Badge>
+                      )}
+                    </div>
+                    {settings.hasSupplierPassword && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePassword('supplier')}
+                        className="text-[10px] text-status-danger hover:underline block mx-auto"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 </div>
 
+                {/* Password Setting Form */}
                 <form onSubmit={handleUpdatePassword} className="space-y-4 pt-4 border-t border-warm-borderLight">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
-                      Action to Protect
+                      Choose Protection to Set / Change
                     </label>
                     <select
                       value={pwdType}
-                      onChange={(e) => setPwdType(e.target.value as 'delete' | 'hide' | 'payment')}
-                      className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+                      onChange={(e) =>
+                        setPwdType(e.target.value as 'delete' | 'hide' | 'payment' | 'supplier')
+                      }
+                      className="w-full rounded-lg border border-warm-border bg-paper px-3 py-2 text-sm text-ink font-semibold focus:border-teal focus:outline-none"
                     >
-                      <option value="payment">Payment Confirmation Password</option>
-                      <option value="delete">Delete Data Password</option>
-                      <option value="hide">Hide Data Password</option>
+                      <option value="delete">1. Delete Protection (Deletions of books, wallpapers, customers, invoices)</option>
+                      <option value="hide">2. Hide Figures Protection (Unmask daily sales and payment collections)</option>
+                      <option value="payment">3. Payment Update Protection (Add/edit invoice payment ledger entries)</option>
+                      <option value="supplier">4. Supplier Invoices Lock (Gate vendor billing view)</option>
                     </select>
                   </div>
 
@@ -541,7 +617,7 @@ export default function SettingsPage() {
 
                   <div className="flex justify-end">
                     <Button type="submit" variant="teal" isLoading={pwdLoading}>
-                      Update Security Password
+                      Save Security Password
                     </Button>
                   </div>
                 </form>
@@ -549,45 +625,290 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {/* Demo Data Tab */}
-          {activeTab === 'demo' && (
+          {/* TAB 4: ACTIVITY AUDIT LOG */}
+          {activeTab === 'activity' && (
             <Card>
               <CardHeader>
-                <CardTitle>Demo &amp; Testing Data</CardTitle>
-                <CardDescription>
-                  Seed sample wallpaper stock, test customers, and mock invoices without touching real records
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Activity Audit Trail</CardTitle>
+                    <CardDescription>
+                      Immutable record of stock reductions, deletions, and administrative actions
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportActivityLogCsv}
+                    leftIcon={<Download className="w-4 h-4" />}
+                  >
+                    Export Log (CSV)
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {logsLoading ? (
+                  <div className="py-16 text-center text-xs text-ink-muted flex items-center justify-center">
+                    <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+                    Loading activity records...
+                  </div>
+                ) : activityLogs.length === 0 ? (
+                  <div className="py-16 text-center text-xs text-ink-muted">
+                    No activity logs recorded yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                        <tr>
+                          <th className="py-2.5 px-4">Date &amp; Time</th>
+                          <th className="py-2.5 px-4">Action</th>
+                          <th className="py-2.5 px-4">Description</th>
+                          <th className="py-2.5 px-4 text-center">Qty</th>
+                          <th className="py-2.5 px-4 text-right">User / Role</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-warm-borderLight">
+                        {activityLogs.map((log) => {
+                          const isDelete = log.action.includes('delete');
+                          const isMinus = log.action.includes('minus');
+
+                          return (
+                            <tr key={log._id} className="hover:bg-paper transition-colors">
+                              <td className="py-2.5 px-4 text-ink-muted whitespace-nowrap">
+                                {formatDateTime(log.createdAt)}
+                              </td>
+                              <td className="py-2.5 px-4">
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    isDelete
+                                      ? 'bg-red-100 text-status-danger'
+                                      : isMinus
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-teal-subtle text-teal'
+                                  }`}
+                                >
+                                  {log.action.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-4 text-ink font-medium max-w-xs truncate">
+                                {log.detail}
+                              </td>
+                              <td className="py-2.5 px-4 text-center font-bold">
+                                {log.qty !== undefined && log.qty !== null ? log.qty : '-'}
+                              </td>
+                              <td className="py-2.5 px-4 text-right text-ink-muted">
+                                <span className="font-semibold text-ink">{log.userName || 'Admin'}</span>
+                                <span className="text-[10px] ml-1">({log.userRole || 'staff'})</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 5: BACKUP & EXPORT */}
+          {activeTab === 'backup' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>CSV Data Exports</CardTitle>
+                  <CardDescription>
+                    Download individual spreadsheets of all records for offline bookkeeping
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a
+                      href="/api/export/customers"
+                      download
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-ink">Customers &amp; Suppliers</div>
+                        <div className="text-[11px] text-ink-muted">Names, mobile, address, udhar balances</div>
+                      </div>
+                      <Download className="w-4 h-4 text-teal shrink-0" />
+                    </a>
+
+                    <a
+                      href="/api/export/products"
+                      download
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-ink">Wallpaper Inventory</div>
+                        <div className="text-[11px] text-ink-muted">WP#, book, prices, stock roll counts</div>
+                      </div>
+                      <Download className="w-4 h-4 text-teal shrink-0" />
+                    </a>
+
+                    <a
+                      href="/api/export/invoices"
+                      download
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-ink">Invoices &amp; Bills</div>
+                        <div className="text-[11px] text-ink-muted">Quotation numbers, totals, paid, remaining</div>
+                      </div>
+                      <Download className="w-4 h-4 text-teal shrink-0" />
+                    </a>
+
+                    <a
+                      href="/api/export/payments"
+                      download
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-ink">Payment Records</div>
+                        <div className="text-[11px] text-ink-muted">Dates, amounts, methods, references</div>
+                      </div>
+                      <Download className="w-4 h-4 text-teal shrink-0" />
+                    </a>
+
+                    <a
+                      href="/api/export/stock-history"
+                      download
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-ink">Stock Audit History</div>
+                        <div className="text-[11px] text-ink-muted">Every sold, returned, and adjusted roll event</div>
+                      </div>
+                      <Download className="w-4 h-4 text-teal shrink-0" />
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={exportActivityLogCsv}
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between text-left transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-ink">Activity Log CSV</div>
+                        <div className="text-[11px] text-ink-muted">Administrative audit entries and reductions</div>
+                      </div>
+                      <Download className="w-4 h-4 text-teal shrink-0" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* EmailJS Integration Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>EmailJS Automated Summaries</CardTitle>
+                  <CardDescription>
+                    Configure email notifications for daily summaries and system alerts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSaveSettings} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input
+                        label="EmailJS Service ID"
+                        type="text"
+                        placeholder="service_xxxxx"
+                        value={settings.emailjsServiceId}
+                        onChange={(e) => setSettings({ ...settings, emailjsServiceId: e.target.value })}
+                      />
+                      <Input
+                        label="EmailJS Template ID"
+                        type="text"
+                        placeholder="template_xxxxx"
+                        value={settings.emailjsTemplateId}
+                        onChange={(e) => setSettings({ ...settings, emailjsTemplateId: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input
+                        label="EmailJS Public Key"
+                        type="text"
+                        placeholder="user_xxxxxxx"
+                        value={settings.emailjsPublicKey}
+                        onChange={(e) => setSettings({ ...settings, emailjsPublicKey: e.target.value })}
+                      />
+                      <Input
+                        label="Recipient Email Address"
+                        type="email"
+                        placeholder="owner@umarusman.com"
+                        value={settings.emailjsToEmail}
+                        onChange={(e) => setSettings({ ...settings, emailjsToEmail: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button type="submit" variant="teal" isLoading={saving}>
+                        Save EmailJS Config
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB 6: ACCOUNT & LOGIN */}
+          {activeTab === 'account' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Credentials</CardTitle>
+                <CardDescription>Your logged-in identity and password updates</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="p-4 bg-paper rounded-xl border border-warm-border text-xs text-ink-muted space-y-2">
-                  <div className="font-bold text-ink text-sm flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-brass-light" />
-                    <span>Safe Multi-Tenant Demo Isolation</span>
+                <div className="p-4 bg-paper rounded-xl border border-warm-border text-xs space-y-1">
+                  <div className="text-ink-muted uppercase font-semibold">Current Login Email</div>
+                  <div className="text-sm font-bold text-ink">{userEmail || 'admin@umarusman.com'}</div>
+                  <div className="text-[11px] text-teal font-semibold capitalize mt-0.5">
+                    Role: {userRole}
                   </div>
-                  <p>
-                    Demo records are tagged with <code>isDemo: true</code>. When removing demo data, only demo records are deleted. Real business invoices and inventory will remain intact.
-                  </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <Button
-                    variant="brass"
-                    onClick={handleSeedDemo}
-                    isLoading={demoLoading}
-                    leftIcon={<Sparkles className="w-4 h-4" />}
-                  >
-                    Seed Demo Records
-                  </Button>
+                <form onSubmit={handleChangeAccountPassword} className="space-y-4 pt-2">
+                  <h4 className="text-xs font-bold text-ink uppercase tracking-wider">
+                    Change Account Password
+                  </h4>
 
-                  <Button
-                    variant="danger"
-                    onClick={handleClearDemo}
-                    isLoading={demoLoading}
-                    leftIcon={<Trash2 className="w-4 h-4" />}
-                  >
-                    Remove Demo Data
-                  </Button>
-                </div>
+                  <Input
+                    label="Current Password"
+                    type="password"
+                    required
+                    value={currentAccountPwd}
+                    onChange={(e) => setCurrentAccountPwd(e.target.value)}
+                    leftIcon={<Lock className="w-4 h-4" />}
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="New Password (min 6 characters)"
+                      type="password"
+                      required
+                      value={newAccountPwd}
+                      onChange={(e) => setNewAccountPwd(e.target.value)}
+                      leftIcon={<Key className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Confirm New Password"
+                      type="password"
+                      required
+                      value={confirmAccountPwd}
+                      onChange={(e) => setConfirmAccountPwd(e.target.value)}
+                      leftIcon={<Key className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="teal" isLoading={acctPwdLoading}>
+                      Update Account Password
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           )}

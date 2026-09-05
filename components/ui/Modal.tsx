@@ -10,7 +10,8 @@ export interface ModalProps {
   title: string;
   description?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
 }
 
 export function Modal({
@@ -20,6 +21,7 @@ export function Modal({
   description,
   children,
   maxWidth = 'md',
+  size,
 }: ModalProps) {
   // Close on Escape key
   useEffect(() => {
@@ -40,12 +42,16 @@ export function Modal({
 
   if (!isOpen) return null;
 
-  const maxWidths = {
+  const resolvedSize = size || maxWidth;
+  const maxWidths: Record<string, string> = {
     sm: 'max-w-sm',
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
   };
 
   return (
@@ -64,7 +70,7 @@ export function Modal({
         aria-labelledby="modal-headline"
         className={cn(
           'relative w-full bg-paper-light rounded-2xl border border-warm-border shadow-warm-lg z-50 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150',
-          maxWidths[maxWidth]
+          maxWidths[resolvedSize] || 'max-w-md'
         )}
       >
         {/* Modal Header */}

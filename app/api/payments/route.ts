@@ -9,6 +9,7 @@ import Settings from '@/models/Settings';
 import { PaymentSchema } from '@/lib/validations';
 import { roundMoney } from '@/lib/utils';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
+import { logActivity } from '@/lib/activity';
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,10 +111,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Invoice not found' }, { status: 404 });
       }
 
-      // Update invoice paid & remaining
+      // Update invoice paid & remaining (allow negative remaining for advance/credit)
       const newPaid = roundMoney(invoice.paid + paymentAmount);
-      const newRemaining = roundMoney(Math.max(invoice.total - newPaid, 0));
-      const newJobStatus = newRemaining === 0 ? 'Fully Paid' : (invoice.jobStatus || 'Advance Received');
+      const newRemaining = roundMoney(invoice.total - newPaid);
+      const newJobStatus = newRemaining <= 0 ? 'Fully Paid' : (invoice.jobStatus || 'Advance Received');
 
       await Invoice.updateOne(
         { _id: invId, userId: userObjectId },
@@ -130,6 +131,13 @@ export async function POST(request: NextRequest) {
       amount: paymentAmount,
       method,
       reference: reference || (invoice ? `Payment for ${invoice.number}` : 'Customer balance payment'),
+    });
+
+    // Log activity
+    await logActivity({
+      userId: userObjectId,
+      type: 'Payment Recorded',
+      detail: `Received Rs. ${paymentAmount} via ${method} from ${customer.name}${invoice ? ` for invoice ${invoice.number}` : ''}`,
     });
 
     return NextResponse.json(

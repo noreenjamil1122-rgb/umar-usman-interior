@@ -64,7 +64,7 @@ export async function generateFormattedCode(
 
   if (type === 'product') {
     const seq = await getNextSequence(userId, 'product', 0);
-    return `WP-${String(seq).padStart(3, '0')}`;
+    return `PRD-${String(seq).padStart(5, '0')}`;
   }
 
   const seq = await getNextSequence(userId, type, 0);

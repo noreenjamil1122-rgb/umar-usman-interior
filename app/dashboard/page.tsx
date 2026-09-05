@@ -7,7 +7,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import {
   FileText,
   Layers,
@@ -21,9 +21,14 @@ import {
   PackageX,
   BellRing,
   CheckCircle2,
-  Download,
+  Calendar,
+  Eye,
+  EyeOff,
+  Warehouse,
+  BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 
 interface DashboardData {
   metrics: {
@@ -36,7 +41,10 @@ interface DashboardData {
     totalCollected: number;
     totalOutstanding: number;
     totalInvoices: number;
+    salesThisDay?: number;
+    paymentsThisDay?: number;
   };
+  selectedDate?: string;
   recentInvoices: Array<{
     _id: string;
     number: string;
@@ -45,6 +53,14 @@ interface DashboardData {
     paid: number;
     remaining: number;
     method: string;
+    customerId?: { name: string; mobile: string; code: string };
+  }>;
+  recentPayments: Array<{
+    _id: string;
+    date: string;
+    amount: number;
+    method: string;
+    reference?: string;
     customerId?: { name: string; mobile: string; code: string };
   }>;
   stockAttention: Array<{
@@ -75,10 +91,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [acked, setAcked] = useState(false);
 
-  const fetchDashboard = async () => {
+  // Date Filter (defaults to today)
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Masking Protection for Daily Sales & Collections
+  const [isMasked, setIsMasked] = useState(true);
+  const [isHideAuthOpen, setIsHideAuthOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('hide_unlocked') === 'true') {
+      setIsMasked(false);
+    }
+  }, []);
+
+  const fetchDashboard = async (dateStr = selectedDate) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/dashboard');
+      const res = await fetch(`/api/dashboard?date=${dateStr}`);
       if (res.status === 401) {
         router.push('/login');
         return;
@@ -97,8 +126,29 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    fetchDashboard(selectedDate);
+  }, [selectedDate]);
+
+  const handleToggleMask = () => {
+    if (isMasked) {
+      setIsHideAuthOpen(true);
+    } else {
+      setIsMasked(true);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('hide_unlocked');
+      }
+      toast.info('Figures masked');
+    }
+  };
+
+  const handleHideAuthorized = () => {
+    setIsMasked(false);
+    setIsHideAuthOpen(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('hide_unlocked', 'true');
+    }
+    toast.success('Figures unmasked');
+  };
 
   const handleAcknowledgeReminder = async () => {
     setAcked(true);
@@ -126,10 +176,38 @@ export default function DashboardPage() {
     totalCollected: 0,
     totalOutstanding: 0,
     totalInvoices: 0,
+    salesThisDay: 0,
+    paymentsThisDay: 0,
   };
 
   const showUdharBanner =
     !acked && (data?.debtCustomers?.length || 0) > 0 && metrics.totalOutstanding > 0;
+
+  // Inverted status colors:
+  // Paid = Yellow
+  // Processing = Green
+  // Udhar = Red
+  const renderStatusBadge = (inv: { paid: number; remaining: number }) => {
+    if (inv.remaining <= 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+          Payment Complete
+        </span>
+      );
+    }
+    if (inv.paid > 0 && inv.remaining > 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          Processing
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+        Udhar
+      </span>
+    );
+  };
 
   return (
     <AppShell title="Business Dashboard">
@@ -148,7 +226,7 @@ export default function DashboardPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchDashboard}
+            onClick={() => fetchDashboard(selectedDate)}
             leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
           >
             Refresh
@@ -160,13 +238,57 @@ export default function DashboardPage() {
             </Button>
           </Link>
 
-          <Link href="/products">
-            <Button variant="brass" size="sm" leftIcon={<Layers className="w-4 h-4" />}>
-              Add Product
+          <Link href="/books">
+            <Button variant="brass" size="sm" leftIcon={<BookOpen className="w-4 h-4" />}>
+              Wallpaper Books
             </Button>
           </Link>
         </div>
       </div>
+
+      {/* Date Filter Toolbar */}
+      <Card className="mb-6 p-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-teal" />
+            <span className="text-xs font-bold text-ink uppercase tracking-wider">
+              Viewing Date:
+            </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-2.5 py-1 text-xs bg-paper border border-warm-border rounded-lg text-ink font-semibold focus:outline-none focus:border-teal"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                setSelectedDate(today);
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                selectedDate === new Date().toISOString().split('T')[0]
+                  ? 'bg-teal text-white shadow-warm'
+                  : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => {
+                const yest = new Date();
+                yest.setDate(yest.getDate() - 1);
+                setSelectedDate(yest.toISOString().split('T')[0]);
+              }}
+              className="px-3 py-1 rounded-lg text-xs font-semibold bg-paper text-ink-muted hover:text-ink border border-warm-border"
+            >
+              Yesterday
+            </button>
+          </div>
+        </div>
+      </Card>
 
       {/* Udhar Debt Notification Banner */}
       {showUdharBanner && (
@@ -203,23 +325,57 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Primary KPI Metric Cards */}
+      {/* Primary KPI Metric Cards (With Masked Daily Figures) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-8">
-        {/* Total Revenue */}
+        {/* Sales This Day (Masked by default) */}
         <Card variant="elevated" className="border-l-4 border-l-teal">
           <div className="flex items-center justify-between pb-2">
             <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
-              Total Revenue
+              Sales This Day
             </span>
-            <div className="p-2 bg-teal-subtle rounded-lg text-teal">
-              <TrendingUp className="w-4 h-4" />
-            </div>
+            <button
+              onClick={handleToggleMask}
+              className="p-1 rounded text-ink-muted hover:text-teal transition-colors"
+              title={isMasked ? 'Reveal sales figure' : 'Mask figure'}
+            >
+              {isMasked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            </button>
           </div>
           <div className="text-xl md:text-2xl font-bold text-ink">
-            {formatCurrency(metrics.totalRevenue)}
+            {isMasked ? (
+              <span className="font-mono tracking-widest text-ink-muted select-none">••••••••</span>
+            ) : (
+              formatCurrency(metrics.salesThisDay || 0)
+            )}
           </div>
-          <div className="text-xs text-ink-muted mt-1">
-            Collected: <span className="font-semibold text-status-success">{formatCurrency(metrics.totalCollected)}</span>
+          <div className="text-[11px] text-ink-muted mt-1">
+            Total Revenue: {isMasked ? '••••••' : formatCurrency(metrics.totalRevenue)}
+          </div>
+        </Card>
+
+        {/* Payments Received This Day (Masked by default) */}
+        <Card variant="elevated" className="border-l-4 border-l-status-success">
+          <div className="flex items-center justify-between pb-2">
+            <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
+              Payments Received
+            </span>
+            <button
+              onClick={handleToggleMask}
+              className="p-1 rounded text-ink-muted hover:text-status-success transition-colors"
+              title={isMasked ? 'Reveal payment collections' : 'Mask figure'}
+            >
+              {isMasked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            </button>
+          </div>
+          <div className="text-xl md:text-2xl font-bold text-status-success">
+            {isMasked ? (
+              <span className="font-mono tracking-widest text-ink-muted select-none">••••••••</span>
+            ) : (
+              formatCurrency(metrics.paymentsThisDay || 0)
+            )}
+          </div>
+          <div className="text-[11px] text-ink-muted mt-1">
+            Total Collected: {isMasked ? '••••••' : formatCurrency(metrics.totalCollected)}
           </div>
         </Card>
 
@@ -229,25 +385,25 @@ export default function DashboardPage() {
             <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
               Total Outstanding
             </span>
-            <div className="p-2 bg-brass-subtle rounded-lg text-brass-dark">
+            <div className="p-1.5 bg-brass-subtle rounded-lg text-brass-dark">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl md:text-2xl font-bold text-ink">
+          <div className="text-xl md:text-2xl font-bold text-status-danger">
             {formatCurrency(metrics.totalOutstanding)}
           </div>
-          <div className="text-xs text-status-warning mt-1 font-medium">
-            Pending client recovery
+          <div className="text-[11px] text-ink-muted mt-1">
+            Active debt across clients
           </div>
         </Card>
 
-        {/* Active Inventory */}
+        {/* Wallpaper Stock */}
         <Card variant="elevated">
           <div className="flex items-center justify-between pb-2">
             <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
               Wallpaper Stock
             </span>
-            <div className="p-2 bg-paper-dark rounded-lg text-ink-muted">
+            <div className="p-1.5 bg-paper-dark rounded-lg text-ink-muted">
               <Layers className="w-4 h-4" />
             </div>
           </div>
@@ -272,30 +428,12 @@ export default function DashboardPage() {
             )}
           </div>
         </Card>
-
-        {/* Customers */}
-        <Card variant="elevated">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
-              Customers
-            </span>
-            <div className="p-2 bg-paper-dark rounded-lg text-ink-muted">
-              <Users className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl md:text-2xl font-bold text-ink">
-            {metrics.totalCustomers}
-          </div>
-          <div className="text-xs text-ink-muted mt-1">
-            Total Invoices: <span className="font-semibold text-ink">{metrics.totalInvoices}</span>
-          </div>
-        </Card>
       </div>
 
-      {/* Main Grid: Recent Invoices & Stock Attention */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Recent Invoices Table (2 cols) */}
-        <Card className="lg:col-span-2">
+      {/* Main Grid: Recent Invoices & Recent Payments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Recent Invoices Table */}
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -309,7 +447,7 @@ export default function DashboardPage() {
               </Link>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {(!data?.recentInvoices || data.recentInvoices.length === 0) ? (
               <div className="py-8 text-center text-xs text-ink-muted">
                 No invoices created yet.{' '}
@@ -323,38 +461,28 @@ export default function DashboardPage() {
                   <thead className="border-b border-warm-border text-ink-muted uppercase font-semibold">
                     <tr>
                       <th className="py-2.5 px-3">Invoice #</th>
-                      <th className="py-2.5 px-3">Customer</th>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Amount</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3 text-right">Action</th>
+                      <th className="py-2.5 px-3">Party</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {data.recentInvoices.map((inv) => (
                       <tr key={inv._id} className="hover:bg-paper transition-colors">
-                        <td className="py-3 px-3 font-semibold text-ink">{inv.number}</td>
-                        <td className="py-3 px-3 text-ink">
-                          <div>{inv.customerId?.name || 'Walk-in'}</div>
-                          <div className="text-[10px] text-ink-muted">{inv.customerId?.mobile || ''}</div>
-                        </td>
-                        <td className="py-3 px-3 text-ink-muted">{formatDate(inv.date)}</td>
-                        <td className="py-3 px-3 font-medium text-ink">{formatCurrency(inv.total)}</td>
-                        <td className="py-3 px-3">
-                          {inv.remaining <= 0 ? (
-                            <Badge variant="success" size="sm">Paid</Badge>
-                          ) : inv.paid > 0 ? (
-                            <Badge variant="warning" size="sm">Partial</Badge>
-                          ) : (
-                            <Badge variant="danger" size="sm">Unpaid</Badge>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <Link href={`/invoices/${inv._id}`}>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-teal">
-                              View
-                            </Button>
+                        <td className="py-3 px-3 font-mono font-bold text-teal">
+                          <Link href={`/invoices/${inv._id}`} className="hover:underline">
+                            {inv.number}
                           </Link>
+                        </td>
+                        <td className="py-3 px-3 text-ink">
+                          <div className="font-semibold">{inv.customerId?.name || 'Walk-in'}</div>
+                          <div className="text-[10px] text-ink-muted">{formatDate(inv.date)}</div>
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-ink">
+                          {formatCurrency(inv.total)}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          {renderStatusBadge(inv)}
                         </td>
                       </tr>
                     ))}
@@ -365,82 +493,116 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Stock Attention Widget (1 col) */}
+        {/* Recent Payments Table */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Stock Attention</CardTitle>
-                <CardDescription>Rolls requiring replenishment</CardDescription>
+                <CardTitle>Recent Payments</CardTitle>
+                <CardDescription>Latest collections recorded</CardDescription>
               </div>
-              <Link href="/products">
+              <Link href="/payments">
                 <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-                  Catalog
+                  View All
                 </Button>
               </Link>
             </div>
           </CardHeader>
-          <CardContent>
-            {(!data?.stockAttention || data.stockAttention.length === 0) ? (
+          <CardContent className="p-0">
+            {(!data?.recentPayments || data.recentPayments.length === 0) ? (
               <div className="py-8 text-center text-xs text-ink-muted">
-                All wallpaper products are adequately stocked.
+                No payment collections recorded yet.
               </div>
             ) : (
-              <div className="space-y-3">
-                {data.stockAttention.map((prod) => (
-                  <div
-                    key={prod._id}
-                    className="p-3 rounded-lg border border-warm-border bg-paper flex items-center justify-between gap-2"
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-ink">
-                        {prod.wp} — {prod.design}
-                      </div>
-                      <div className="text-[11px] text-ink-muted">
-                        Brand: {prod.brand} • Min: {prod.minStock} rolls
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {prod.stock <= 0 ? (
-                        <Badge variant="danger" size="sm">Out of Stock</Badge>
-                      ) : (
-                        <Badge variant="warning" size="sm">{prod.stock} rolls left</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-warm-border text-ink-muted uppercase font-semibold">
+                    <tr>
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Party</th>
+                      <th className="py-2.5 px-3">Method</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-warm-borderLight">
+                    {data.recentPayments.map((p) => (
+                      <tr key={p._id} className="hover:bg-paper transition-colors">
+                        <td className="py-3 px-3 text-ink-muted">{formatDate(p.date)}</td>
+                        <td className="py-3 px-3 text-ink font-semibold">
+                          {p.customerId?.name || 'Customer'}
+                        </td>
+                        <td className="py-3 px-3 text-ink font-medium">{p.method}</td>
+                        <td className="py-3 px-3 text-right font-bold text-status-success">
+                          {formatCurrency(p.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* CSV Export & Quick Utility Toolbar */}
-      <Card variant="sunken" className="p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-ink-muted">
-            <Download className="w-4 h-4 text-teal" />
-            <span className="font-semibold text-ink">Export Business Data (CSV):</span>
+      {/* Stock Attention Widget */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Stock Attention Alert</CardTitle>
+              <CardDescription>Rolls requiring replenishment or reorder</CardDescription>
+            </div>
+            <Link href="/stock">
+              <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                Stock Manager
+              </Button>
+            </Link>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href="/api/export/customers" download className="px-2.5 py-1 bg-paper-light border border-warm-border rounded-md hover:bg-paper font-medium text-ink transition-colors">
-              Customers.csv
-            </a>
-            <a href="/api/export/products" download className="px-2.5 py-1 bg-paper-light border border-warm-border rounded-md hover:bg-paper font-medium text-ink transition-colors">
-              Inventory.csv
-            </a>
-            <a href="/api/export/invoices" download className="px-2.5 py-1 bg-paper-light border border-warm-border rounded-md hover:bg-paper font-medium text-ink transition-colors">
-              Invoices.csv
-            </a>
-            <a href="/api/export/payments" download className="px-2.5 py-1 bg-paper-light border border-warm-border rounded-md hover:bg-paper font-medium text-ink transition-colors">
-              Payments.csv
-            </a>
-            <a href="/api/export/stock-history" download className="px-2.5 py-1 bg-paper-light border border-warm-border rounded-md hover:bg-paper font-medium text-ink transition-colors">
-              StockAudit.csv
-            </a>
-          </div>
-        </div>
+        </CardHeader>
+        <CardContent>
+          {(!data?.stockAttention || data.stockAttention.length === 0) ? (
+            <div className="py-6 text-center text-xs text-ink-muted">
+              All wallpaper products are adequately stocked.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {data.stockAttention.map((prod) => (
+                <div
+                  key={prod._id}
+                  className="p-3 rounded-lg border border-warm-border bg-paper flex items-center justify-between gap-2"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-ink">
+                      {prod.wp} — {prod.design}
+                    </div>
+                    <div className="text-[11px] text-ink-muted">
+                      Brand: {prod.brand || '-'}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {prod.stock <= 0 ? (
+                      <Badge variant="danger" size="sm">0 Out</Badge>
+                    ) : (
+                      <Badge variant="warning" size="sm">{prod.stock} rolls</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </Card>
+
+      {/* Hide Password Authorization Modal */}
+      <PasswordPromptModal
+        isOpen={isHideAuthOpen}
+        onClose={() => setIsHideAuthOpen(false)}
+        title="Authorize Figure Display"
+        actionDescription="Enter the Hide password to reveal daily sales figures and payment collection metrics."
+        protectionType="hide"
+        onAuthorized={handleHideAuthorized}
+      />
     </AppShell>
   );
 }

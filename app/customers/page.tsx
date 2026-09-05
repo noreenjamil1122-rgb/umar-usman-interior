@@ -25,10 +25,14 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import Link from 'next/link';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
+
 interface Customer {
   _id: string;
   code: string;
   name: string;
+  type?: 'customer' | 'supplier';
   mobile: string;
   whatsapp?: string;
   alt?: string;
@@ -36,16 +40,19 @@ interface Customer {
   city?: string;
   notes?: string;
   dateAdded: string;
+  totalPurchase?: number;
+  totalPaid?: number;
   outstandingBalance?: number;
 }
 
-export default function CustomersPage() {
+function CustomersContent() {
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter');
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [partyTypeTab, setPartyTypeTab] = useState<'all' | 'customer' | 'supplier'>('all');
   const [filterDebtOnly, setFilterDebtOnly] = useState(initialFilter === 'debt');
 
   // Add/Edit modal state
@@ -54,6 +61,7 @@ export default function CustomersPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    type: 'customer' as 'customer' | 'supplier',
     mobile: '',
     whatsapp: '',
     alt: '',
@@ -61,6 +69,9 @@ export default function CustomersPage() {
     city: 'Lahore',
     notes: '',
   });
+
+  // Delete Password Modal
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
   // Customer Ledger inspection modal
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
@@ -74,10 +85,11 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const url = search.trim()
-        ? `/api/customers?q=${encodeURIComponent(search.trim())}`
-        : '/api/customers';
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      if (search.trim()) params.set('q', search.trim());
+      if (partyTypeTab !== 'all') params.set('type', partyTypeTab);
+
+      const res = await fetch(`/api/customers?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
         setCustomers(json.data);
@@ -93,13 +105,14 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [search]);
+  }, [search, partyTypeTab]);
 
   // Open Edit modal
   const handleEdit = (c: Customer) => {
     setEditingCustomer(c);
     setFormData({
       name: c.name,
+      type: c.type || 'customer',
       mobile: c.mobile,
       whatsapp: c.whatsapp || '',
       alt: c.alt || '',
@@ -127,11 +140,14 @@ export default function CustomersPage() {
     }
   };
 
-  // Save Customer (Add or Edit)
-  const handleSaveCustomer = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
+    if (!formData.name.trim() || !formData.mobile.trim()) {
+      toast.error('Name and Mobile number are required');
+      return;
+    }
 
+    setFormLoading(true);
     try {
       const method = editingCustomer ? 'PUT' : 'POST';
       const url = editingCustomer ? `/api/customers/${editingCustomer._id}` : '/api/customers';
@@ -143,48 +159,38 @@ export default function CustomersPage() {
       });
 
       const json = await res.json();
-
       if (!res.ok || !json.success) {
-        toast.error('Error saving customer', { description: json.error });
+        toast.error('Failed to save party record', { description: json.error });
         setFormLoading(false);
         return;
       }
 
-      toast.success(editingCustomer ? 'Customer updated' : 'Customer add ho gaya');
+      toast.success(editingCustomer ? 'Party updated successfully' : 'Party registered successfully');
       setIsAddOpen(false);
       setEditingCustomer(null);
-      setFormData({
-        name: '',
-        mobile: '',
-        whatsapp: '',
-        alt: '',
-        address: '',
-        city: 'Lahore',
-        notes: '',
-      });
       fetchCustomers();
     } catch {
-      toast.error('Network error while saving customer');
+      toast.error('Network Error');
     } finally {
       setFormLoading(false);
     }
   };
 
-  // Delete Customer
-  const handleDelete = async (c: Customer) => {
-    if (!confirm(`Are you sure you want to delete customer "${c.name}"?`)) return;
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
 
     try {
-      const res = await fetch(`/api/customers/${c._id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/customers/${customerToDelete._id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        toast.error('Cannot delete customer', { description: json.error });
+        toast.error('Cannot delete party', { description: json.error });
         return;
       }
-      toast.success('Customer deleted successfully');
+      toast.success(`${customerToDelete.type === 'supplier' ? 'Supplier' : 'Customer'} deleted successfully`);
+      setCustomerToDelete(null);
       fetchCustomers();
     } catch {
-      toast.error('Failed to delete customer');
+      toast.error('Failed to delete party');
     }
   };
 
@@ -193,15 +199,15 @@ export default function CustomersPage() {
     : customers;
 
   return (
-    <AppShell title="Customers Management">
+    <AppShell title="Party Directory">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-            Customer Directory &amp; Ledger
+            Customers &amp; Suppliers Directory
           </h1>
           <p className="text-xs md:text-sm text-ink-muted">
-            Manage client accounts, contact details, and Udhar balances
+            Manage clients, vendor accounts, contact details, and Udhar balances
           </p>
         </div>
 
@@ -213,6 +219,7 @@ export default function CustomersPage() {
               setEditingCustomer(null);
               setFormData({
                 name: '',
+                type: partyTypeTab === 'supplier' ? 'supplier' : 'customer',
                 mobile: '',
                 whatsapp: '',
                 alt: '',
@@ -224,46 +231,69 @@ export default function CustomersPage() {
             }}
             leftIcon={<Plus className="w-4 h-4" />}
           >
-            Add Customer
+            Add Party
           </Button>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
       <Card className="mb-6 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
-            <input
-              type="text"
-              placeholder="Search by name, mobile, code (CUS-XXXXX)..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
             <button
-              onClick={() => setFilterDebtOnly(false)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                !filterDebtOnly
+              onClick={() => setPartyTypeTab('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                partyTypeTab === 'all'
+                  ? 'bg-ink text-white'
+                  : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+              }`}
+            >
+              All Parties
+            </button>
+            <button
+              onClick={() => setPartyTypeTab('customer')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                partyTypeTab === 'customer'
                   ? 'bg-teal text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              All ({customers.length})
+              Customers Only
             </button>
             <button
-              onClick={() => setFilterDebtOnly(true)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              onClick={() => setPartyTypeTab('supplier')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                partyTypeTab === 'supplier'
+                  ? 'bg-brass-dark text-white shadow-warm'
+                  : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+              }`}
+            >
+              Suppliers Only
+            </button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+              <input
+                type="text"
+                placeholder="Search name, phone, code..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+              />
+            </div>
+
+            <button
+              onClick={() => setFilterDebtOnly(!filterDebtOnly)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 filterDebtOnly
-                  ? 'bg-brass text-white shadow-warm'
+                  ? 'bg-status-danger text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
-              <span>With Udhar / Debt Only</span>
+              <span>Udhar Only</span>
             </button>
           </div>
         </div>
@@ -275,16 +305,16 @@ export default function CustomersPage() {
           {loading ? (
             <div className="py-12 flex justify-center items-center text-xs text-ink-muted">
               <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
-              Loading customer directory...
+              Loading directory...
             </div>
           ) : displayedCustomers.length === 0 ? (
             <div className="py-12 text-center text-ink-muted space-y-2">
               <Users className="w-10 h-10 mx-auto text-ink-muted/40" />
-              <div className="text-sm font-semibold text-ink">No customers found</div>
+              <div className="text-sm font-semibold text-ink">No parties found</div>
               <p className="text-xs">
                 {filterDebtOnly
-                  ? 'No clients with outstanding balances.'
-                  : 'Add your first customer to begin issuing wallpaper invoices.'}
+                  ? 'No accounts with outstanding balances.'
+                  : 'Add your first customer or supplier to begin recording transactions.'}
               </p>
             </div>
           ) : (
@@ -295,24 +325,41 @@ export default function CustomersPage() {
                   <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
                     <tr>
                       <th className="py-3 px-4">Code</th>
+                      <th className="py-3 px-4">Type</th>
                       <th className="py-3 px-4">Name</th>
                       <th className="py-3 px-4">Contact</th>
                       <th className="py-3 px-4">City / Address</th>
-                      <th className="py-3 px-4">Outstanding (Udhar)</th>
+                      <th className="py-3 px-4 text-right">Total Purchases</th>
+                      <th className="py-3 px-4 text-right">Outstanding (Udhar)</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {displayedCustomers.map((c) => (
                       <tr key={c._id} className="hover:bg-paper transition-colors">
-                        <td className="py-3 px-4 font-mono font-semibold text-teal">{c.code}</td>
+                        <td className="py-3 px-4 font-mono font-semibold text-teal">
+                          <Link href={`/customers/${c._id}`} className="hover:underline">
+                            {c.code}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              c.type === 'supplier'
+                                ? 'bg-brass-light text-brass-dark'
+                                : 'bg-teal-subtle text-teal-dark'
+                            }`}
+                          >
+                            {c.type === 'supplier' ? 'Supplier' : 'Customer'}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 font-bold text-ink">
-                          <button
-                            onClick={() => handleViewLedger(c)}
-                            className="hover:underline text-left"
+                          <Link
+                            href={`/customers/${c._id}`}
+                            className="hover:text-teal hover:underline text-left block"
                           >
                             {c.name}
-                          </button>
+                          </Link>
                         </td>
                         <td className="py-3 px-4 space-y-0.5">
                           <div className="flex items-center gap-1.5 text-ink">
@@ -330,23 +377,37 @@ export default function CustomersPage() {
                           <div className="text-ink font-medium">{c.city || 'Lahore'}</div>
                           <div className="text-[11px] truncate max-w-xs">{c.address || '-'}</div>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 text-right font-medium text-ink">
+                          {formatCurrency(c.totalPurchase || 0)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
                           {(c.outstandingBalance || 0) > 0 ? (
-                            <Badge variant="warning">
+                            <span className="inline-block px-2.5 py-1 rounded bg-red-50 text-status-danger font-bold text-xs border border-red-200">
                               {formatCurrency(c.outstandingBalance!)}
-                            </Badge>
+                            </span>
+                          ) : (c.outstandingBalance || 0) < 0 ? (
+                            <span className="inline-block px-2.5 py-1 rounded bg-green-50 text-status-success font-bold text-xs border border-green-200">
+                              Advance: {formatCurrency(Math.abs(c.outstandingBalance!))}
+                            </span>
                           ) : (
-                            <Badge variant="success">Cleared (Rs. 0)</Badge>
+                            <span className="inline-block px-2 py-0.5 rounded bg-surface text-ink-muted font-medium text-[11px]">
+                              Cleared (Rs. 0)
+                            </span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-right space-x-1">
+                          <Link href={`/customers/${c._id}`}>
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-teal">
+                              Profile
+                            </Button>
+                          </Link>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewLedger(c)}
-                            className="h-7 px-2 text-xs text-teal"
+                            className="h-7 px-2 text-xs text-ink-muted"
                           >
-                            Ledger
+                            Quick View
                           </Button>
                           <Button
                             variant="ghost"
@@ -359,7 +420,7 @@ export default function CustomersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(c)}
+                            onClick={() => setCustomerToDelete(c)}
                             className="h-7 px-2 text-xs text-status-danger hover:bg-status-dangerLight"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -377,17 +438,34 @@ export default function CustomersPage() {
                   <div key={c._id} className="pt-3 first:pt-0 space-y-2">
                     <div className="flex items-start justify-between">
                       <div>
-                        <span className="text-[10px] font-mono font-bold text-teal bg-teal-subtle px-1.5 py-0.5 rounded">
-                          {c.code}
-                        </span>
-                        <h4 className="text-sm font-bold text-ink mt-1">{c.name}</h4>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono font-bold text-teal bg-teal-subtle px-1.5 py-0.5 rounded">
+                            {c.code}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                              c.type === 'supplier'
+                                ? 'bg-brass-light text-brass-dark'
+                                : 'bg-teal-subtle text-teal-dark'
+                            }`}
+                          >
+                            {c.type === 'supplier' ? 'Supplier' : 'Customer'}
+                          </span>
+                        </div>
+                        <Link href={`/customers/${c._id}`}>
+                          <h4 className="text-sm font-bold text-ink mt-1 hover:text-teal">{c.name}</h4>
+                        </Link>
                       </div>
                       {(c.outstandingBalance || 0) > 0 ? (
-                        <Badge variant="warning" size="sm">
+                        <span className="px-2 py-0.5 rounded bg-red-50 text-status-danger font-bold text-xs border border-red-200">
                           {formatCurrency(c.outstandingBalance!)}
-                        </Badge>
+                        </span>
+                      ) : (c.outstandingBalance || 0) < 0 ? (
+                        <span className="px-2 py-0.5 rounded bg-green-50 text-status-success font-bold text-xs border border-green-200">
+                          Adv {formatCurrency(Math.abs(c.outstandingBalance!))}
+                        </span>
                       ) : (
-                        <Badge variant="success" size="sm">Cleared</Badge>
+                        <span className="text-[11px] text-ink-muted">Cleared</span>
                       )}
                     </div>
 
@@ -407,14 +485,11 @@ export default function CustomersPage() {
                     </div>
 
                     <div className="flex items-center justify-end gap-2 pt-1 border-t border-warm-borderLight">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => handleViewLedger(c)}
-                      >
-                        Ledger
-                      </Button>
+                      <Link href={`/customers/${c._id}`}>
+                        <Button variant="outline" size="sm" className="h-7 text-xs">
+                          Profile
+                        </Button>
+                      </Link>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -422,6 +497,14 @@ export default function CustomersPage() {
                         onClick={() => handleEdit(c)}
                       >
                         Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-status-danger hover:bg-status-dangerLight"
+                        onClick={() => setCustomerToDelete(c)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -436,12 +519,40 @@ export default function CustomersPage() {
       <Modal
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
-        title={editingCustomer ? `Edit Customer (${editingCustomer.code})` : 'Add New Customer'}
-        description="Enter client contact information for invoices and ledger records."
+        title={editingCustomer ? `Edit Party (${editingCustomer.code})` : 'Add New Party'}
+        description="Enter contact and categorization details."
       >
-        <form onSubmit={handleSaveCustomer} className="space-y-4">
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-ink mb-1">Party Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type: 'customer' })}
+                className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                  formData.type === 'customer'
+                    ? 'border-teal bg-teal-subtle text-teal-dark font-bold'
+                    : 'border-warm-border bg-paper text-ink-muted'
+                }`}
+              >
+                Customer (Grahak)
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type: 'supplier' })}
+                className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                  formData.type === 'supplier'
+                    ? 'border-brass bg-brass-light text-brass-dark font-bold'
+                    : 'border-warm-border bg-paper text-ink-muted'
+                }`}
+              >
+                Supplier (Vendor)
+              </button>
+            </div>
+          </div>
+
           <Input
-            label="Customer / Business Name"
+            label="Party / Business Name"
             type="text"
             required
             placeholder="e.g. Mian Tariq Decorators"
@@ -513,28 +624,37 @@ export default function CustomersPage() {
               variant="teal"
               isLoading={formLoading}
             >
-              {editingCustomer ? 'Update Customer' : 'Save Customer'}
+              {editingCustomer ? 'Update Party' : 'Save Party'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Customer Ledger Drawer / Inspection Modal */}
+      {/* Delete Password Modal */}
+      <PasswordPromptModal
+        isOpen={Boolean(customerToDelete)}
+        onClose={() => setCustomerToDelete(null)}
+        title={`Authorize Deletion: ${customerToDelete?.name}`}
+        actionDescription={`Permanently delete ${customerToDelete?.type === 'supplier' ? 'supplier' : 'customer'} ${customerToDelete?.code}. This will log an activity event.`}
+        protectionType="delete"
+        onAuthorized={confirmDeleteCustomer}
+      />
+
+      {/* Customer Ledger Quick View Modal */}
       <Modal
         isOpen={Boolean(viewingCustomer)}
         onClose={() => setViewingCustomer(null)}
-        title={`Customer Ledger — ${viewingCustomer?.name}`}
+        title={`Ledger Quick View — ${viewingCustomer?.name}`}
         description={`${viewingCustomer?.code} • ${viewingCustomer?.mobile} • ${viewingCustomer?.city || 'Lahore'}`}
         maxWidth="xl"
       >
         {detailsLoading ? (
           <div className="py-8 text-center text-xs text-ink-muted">
             <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-teal" />
-            Loading customer financial records...
+            Loading financial records...
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Financial Summary */}
             <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-paper border border-warm-border text-center">
               <div>
                 <div className="text-[11px] text-ink-muted uppercase font-semibold">Total Invoiced</div>
@@ -560,10 +680,10 @@ export default function CustomersPage() {
             <div>
               <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-teal" />
-                <span>Invoice History</span>
+                <span>Recent Invoices</span>
               </h4>
               {(!customerDetails?.invoices || customerDetails.invoices.length === 0) ? (
-                <p className="text-xs text-ink-muted">No invoices found for this customer.</p>
+                <p className="text-xs text-ink-muted">No invoices found for this party.</p>
               ) : (
                 <div className="border border-warm-border rounded-lg overflow-hidden">
                   <table className="w-full text-left text-xs">
@@ -578,7 +698,11 @@ export default function CustomersPage() {
                     <tbody className="divide-y divide-warm-borderLight">
                       {customerDetails.invoices.map((inv) => (
                         <tr key={inv._id}>
-                          <td className="py-2 px-3 font-semibold text-teal">{inv.number}</td>
+                          <td className="py-2 px-3 font-semibold text-teal">
+                            <Link href={`/invoices/${inv._id}`} className="hover:underline">
+                              {inv.number}
+                            </Link>
+                          </td>
                           <td className="py-2 px-3 text-ink-muted">{formatDate(inv.date)}</td>
                           <td className="py-2 px-3 font-medium text-ink">{formatCurrency(inv.total)}</td>
                           <td className="py-2 px-3 font-medium text-status-warning">
@@ -592,54 +716,39 @@ export default function CustomersPage() {
               )}
             </div>
 
-            {/* Payment History */}
-            <div>
-              <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-brass-dark" />
-                <span>Payment Records</span>
-              </h4>
-              {(!customerDetails?.payments || customerDetails.payments.length === 0) ? (
-                <p className="text-xs text-ink-muted">No payments recorded yet.</p>
-              ) : (
-                <div className="border border-warm-border rounded-lg overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-paper border-b border-warm-border text-ink-muted font-semibold">
-                      <tr>
-                        <th className="py-2 px-3">Date</th>
-                        <th className="py-2 px-3">Amount</th>
-                        <th className="py-2 px-3">Method</th>
-                        <th className="py-2 px-3">Reference</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-warm-borderLight">
-                      {customerDetails.payments.map((p) => (
-                        <tr key={p._id}>
-                          <td className="py-2 px-3 text-ink-muted">{formatDate(p.date)}</td>
-                          <td className="py-2 px-3 font-bold text-status-success">
-                            {formatCurrency(p.amount)}
-                          </td>
-                          <td className="py-2 px-3 text-ink">{p.method}</td>
-                          <td className="py-2 px-3 text-ink-muted">{p.reference || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <div className="flex justify-between items-center pt-4 border-t border-warm-borderLight">
+              {viewingCustomer && (
+                <Link href={`/customers/${viewingCustomer._id}`}>
+                  <Button variant="teal" size="sm">
+                    Open Full Profile &amp; Statement
+                  </Button>
+                </Link>
               )}
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-warm-borderLight">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setViewingCustomer(null)}
               >
-                Close Ledger
+                Close
               </Button>
             </div>
           </div>
         )}
       </Modal>
     </AppShell>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-ink-muted">
+          Loading party directory...
+        </div>
+      }
+    >
+      <CustomersContent />
+    </React.Suspense>
   );
 }

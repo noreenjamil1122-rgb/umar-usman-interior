@@ -102,14 +102,29 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 4. Check Settings for reminder acknowledgement
+    const Settings = (await import('@/models/Settings')).default;
+    const settings = await Settings.findOne({ userId: userObjectId }).select('reminderAckDate').lean();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const ackDateStr = settings?.reminderAckDate ? new Date(settings.reminderAckDate).toISOString().split('T')[0] : '';
+    const hasUnackedUdhar = unpaidInvoices.length > 0 && ackDateStr !== todayStr;
+
     // Sort by date descending
     notifications.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return NextResponse.json({
       success: true,
       data: {
+        hasUnackedUdhar,
         totalUnread: notifications.filter((n) => n.severity === 'high' || n.type === 'debt' || n.type === 'stock').length,
         notifications: notifications.slice(0, 15),
+        unpaidInvoices: unpaidInvoices.map((inv) => ({
+          _id: inv._id,
+          number: inv.number,
+          remaining: inv.remaining,
+          customerName: (inv.customerId as any)?.name || 'Customer',
+          customerMobile: (inv.customerId as any)?.mobile || '',
+        })),
       },
     });
   } catch (error) {
