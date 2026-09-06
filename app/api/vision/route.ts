@@ -8,13 +8,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+
+    if (!geminiApiKey && !anthropicApiKey) {
       return NextResponse.json(
         {
           success: false,
           error:
-            'ANTHROPIC_API_KEY is not set in your .env.local. Please configure it to enable AI image scanning.',
+            'GEMINI_API_KEY is not configured in .env.local. Please add your Gemini API key to enable AI image scanning.',
         },
         { status: 503 }
       );
@@ -30,8 +32,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Clean data URL prefix if present
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+    // Detect MIME type and clean Base64 data
+    const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : (mediaType || 'image/jpeg');
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
 
     let promptText = '';
     if (action === 'scan_code') {
@@ -47,49 +51,96 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1000,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType,
-                  data: cleanBase64,
+    let rawText = '';
+
+    if (geminiApiKey) {
+      // Google Gemini Vision API (gemini-3.6-flash)
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
+      const geminiResponse = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: cleanBase64,
+                  },
                 },
-              },
-              {
-                type: 'text',
-                text: promptText,
-              },
-            ],
+                {
+                  text: promptText,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            response_mime_type: 'application/json',
+            temperature: 0.1,
           },
-        ],
-      }),
-    });
+        }),
+      });
 
-    if (!anthropicResponse.ok) {
-      const errText = await anthropicResponse.text();
-      console.error('Anthropic API Error:', errText);
-      return NextResponse.json(
-        { success: false, error: `Anthropic API error: ${anthropicResponse.status}` },
-        { status: anthropicResponse.status }
-      );
+      if (!geminiResponse.ok) {
+        const errorData = await geminiResponse.json().catch(() => null);
+        const errorMsg =
+          errorData?.error?.message || `Gemini API error: ${geminiResponse.status}`;
+        console.error('Gemini API Error:', errorData || errorMsg);
+        return NextResponse.json(
+          { success: false, error: errorMsg },
+          { status: geminiResponse.status }
+        );
+      }
+
+      const result = await geminiResponse.json();
+      rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else {
+      // Anthropic Claude fallback
+      const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicApiKey as string,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: {
+                    type: 'base64',
+                    media_type: mimeType,
+                    data: cleanBase64,
+                  },
+                },
+                {
+                  type: 'text',
+                  text: promptText,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!anthropicResponse.ok) {
+        const errText = await anthropicResponse.text();
+        console.error('Anthropic API Error:', errText);
+        return NextResponse.json(
+          { success: false, error: `Anthropic API error: ${anthropicResponse.status}` },
+          { status: anthropicResponse.status }
+        );
+      }
+
+      const result = await anthropicResponse.json();
+      rawText = result.content?.[0]?.text || '';
     }
-
-    const result = await anthropicResponse.json();
-    const rawText = result.content?.[0]?.text || '';
 
     // Extract JSON from output
     const jsonMatch = rawText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);

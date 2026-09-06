@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   CreditCard,
@@ -17,6 +20,9 @@ import {
   Calendar,
   RefreshCw,
   Lock,
+  Unlock,
+  ShieldAlert,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,9 +51,17 @@ interface UnpaidInvoiceOption {
 }
 
 export default function PaymentsPage() {
+  const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Security Lock & Role States
+  const [userRole, setUserRole] = useState<'admin' | 'worker' | null>(null);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [hasPaymentPassword, setHasPaymentPassword] = useState<boolean | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   // Add Payment Modal State
   const [isOpen, setIsOpen] = useState(false);
@@ -67,6 +81,10 @@ export default function PaymentsPage() {
       const json = await res.json();
       if (json.success) {
         setPayments(json.data);
+      } else if (res.status === 403) {
+        toast.error('Access Denied', {
+          description: json.error || 'Only admin can access the payment ledger',
+        });
       }
     } catch {
       toast.error('Could not load payment ledger');
@@ -76,11 +94,63 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
+    // Check if previously unlocked in this browser session
+    const unlocked =
+      typeof window !== 'undefined' &&
+      sessionStorage.getItem('payment_section_unlocked') === 'true';
+    if (unlocked) {
+      setIsUnlocked(true);
+    }
+
+    // Fetch user session to determine role
+    fetch('/api/auth/session')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          const role = d.user.role || 'admin';
+          setUserRole(role);
+          if (role === 'admin' && unlocked) {
+            fetchPayments();
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setSessionChecked(true);
+      });
+
+    // Check Settings for hasPaymentPassword
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data) {
+          setHasPaymentPassword(Boolean(d.data.hasPaymentPassword));
+        }
+      })
+      .catch(() => {});
+
     fetch('/api/customers')
       .then((r) => r.json())
       .then((d) => d.success && setCustomers(d.data));
   }, []);
+
+  const handleUnlockAuthorized = () => {
+    setIsUnlocked(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('payment_section_unlocked', 'true');
+    }
+    setIsAuthModalOpen(false);
+    toast.success('Payment section unlocked');
+    fetchPayments();
+  };
+
+  const handleLockSection = () => {
+    setIsUnlocked(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('payment_section_unlocked');
+    }
+    toast.info('Payment section locked');
+  };
 
   // When customer changes in modal, load their unpaid invoices
   useEffect(() => {
@@ -167,20 +237,149 @@ export default function PaymentsPage() {
     .filter((p) => p.date && p.date.startsWith(todayStr))
     .reduce((acc, p) => acc + (p.amount || 0), 0);
 
+  // 1. Session Loading State
+  if (!sessionChecked) {
+    return (
+      <AppShell title="Payment Ledger">
+        <div className="py-24 text-center text-ink-muted flex flex-col items-center justify-center space-y-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-teal" />
+          <p className="text-xs font-medium">Verifying security permissions...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 2. Worker Restriction (Only Admin Can Open / Access)
+  if (userRole === 'worker') {
+    return (
+      <AppShell title="Payment Ledger — Restricted">
+        <div className="max-w-md mx-auto my-12">
+          <Card className="border-status-danger/30 shadow-warm-lg bg-paper-light">
+            <CardContent className="p-8 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-status-dangerLight text-status-danger flex items-center justify-center mx-auto shadow-warm">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5">
+                <Badge variant="danger" size="sm">
+                  Admin Only Access
+                </Badge>
+                <h2 className="text-xl font-bold text-ink tracking-tight">Payment Section Locked</h2>
+                <p className="text-sm text-ink-muted leading-relaxed">
+                  Yeh section sirf Business Admin ke liye makhsoos hai. Workers ko payment records,
+                  collections aur cash inflow dekhne ki ijazat nahi hai.
+                </p>
+                <p className="text-[11px] text-ink-muted">
+                  (Only the business owner / admin is authorized to unlock and view payments.)
+                </p>
+              </div>
+              <div className="pt-3">
+                <Link href="/dashboard">
+                  <Button variant="teal" leftIcon={<ArrowLeft className="w-4 h-4" />}>
+                    Back to Dashboard
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 3. Admin Security Lock Screen (Only Admin with password can open)
+  if (!isUnlocked) {
+    return (
+      <AppShell title="Payment Ledger — Locked">
+        <div className="max-w-md mx-auto my-12">
+          <Card className="border-amber-300 shadow-warm-lg bg-paper-light">
+            <CardContent className="p-8 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto shadow-warm">
+                <Lock className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5">
+                <Badge variant="warning" size="sm">
+                  Security Lock Active
+                </Badge>
+                <h2 className="text-xl font-bold text-ink tracking-tight">Payment Section Locked</h2>
+                <p className="text-sm text-ink-muted leading-relaxed">
+                  Customer payment records, cash inflow figures, and collection history are protected.
+                  Only Admin can unlock this section.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button
+                  variant="teal"
+                  onClick={() => {
+                    if (hasPaymentPassword) {
+                      setIsAuthModalOpen(true);
+                    } else {
+                      handleUnlockAuthorized();
+                    }
+                  }}
+                  leftIcon={<Unlock className="w-4 h-4" />}
+                >
+                  {hasPaymentPassword ? 'Unlock with Admin Password' : 'Open Payment Section'}
+                </Button>
+                <Link href="/dashboard">
+                  <Button variant="outline" leftIcon={<ArrowLeft className="w-4 h-4" />}>
+                    Dashboard
+                  </Button>
+                </Link>
+              </div>
+
+              {hasPaymentPassword === false && (
+                <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                  Tip: No payment password is configured yet. You can set a dedicated password in{' '}
+                  <Link href="/settings" className="font-semibold underline">
+                    Settings &rarr; Security Passwords
+                  </Link>.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <PasswordPromptModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          title="Unlock Payment Section"
+          actionDescription="Enter your Admin Payment Protection password to view customer ledger, payments history, and cash collections."
+          protectionType="payment"
+          onAuthorized={handleUnlockAuthorized}
+        />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell title="Payment Ledger">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-            Customer Payments &amp; Cash Inflow
-          </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+              Customer Payments &amp; Cash Inflow
+            </h1>
+            <Badge variant="success" size="sm">
+              Unlocked
+            </Badge>
+          </div>
+          <p className="text-xs md:text-sm text-ink-muted mt-0.5">
             Record installments, invoice clearances, and customer account deposits
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLockSection}
+            leftIcon={<Lock className="w-3.5 h-3.5 text-amber-600" />}
+            title="Lock Payment Section"
+          >
+            Lock Section
+          </Button>
           <Button
             variant="outline"
             size="sm"

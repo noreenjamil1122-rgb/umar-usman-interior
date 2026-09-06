@@ -34,7 +34,7 @@ const allNavItems: NavItem[] = [
   { label: 'Customers', href: '/customers', icon: Users },
   { label: 'Wallpaper Books', href: '/books', icon: BookOpen },
   { label: 'Invoices', href: '/invoices', icon: FileText },
-  { label: 'Payments', href: '/payments', icon: CreditCard },
+  { label: 'Payments', href: '/payments', icon: CreditCard, adminOnly: true },
   { label: 'Stock', href: '/stock', icon: Package },
   { label: 'Customer Ledger', href: '/ledger', icon: BookMarked },
   { label: 'Reports', href: '/reports', icon: BarChart3 },

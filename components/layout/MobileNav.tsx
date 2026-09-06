@@ -34,21 +34,47 @@ const quickNav = [
   { label: 'Customers', href: '/customers', icon: Users },
 ];
 
-const allNavItems = [
+interface MobileNavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
+}
+
+const allNavItems: MobileNavItem[] = [
   { label: 'Warehouses', href: '/warehouses', icon: Warehouse },
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Customers', href: '/customers', icon: Users },
   { label: 'Wallpaper Books', href: '/books', icon: BookOpen },
   { label: 'Invoices', href: '/invoices', icon: FileText },
-  { label: 'Payments', href: '/payments', icon: CreditCard },
+  { label: 'Payments', href: '/payments', icon: CreditCard, adminOnly: true },
   { label: 'Stock', href: '/stock', icon: Package },
   { label: 'Customer Ledger', href: '/ledger', icon: BookMarked },
   { label: 'Reports', href: '/reports', icon: BarChart3 },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];
 
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname();
+  const [userRole, setUserRole] = React.useState<'admin' | 'worker'>('admin');
+
+  React.useEffect(() => {
+    fetch('/api/auth/session')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setUserRole(d.user.role || 'admin');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const visibleNavItems = allNavItems.filter((item) => {
+    if (item.adminOnly && userRole !== 'admin') {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -93,7 +119,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
 
           {/* Navigation Links */}
           <div className="mt-4 space-y-1">
-            {allNavItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
 

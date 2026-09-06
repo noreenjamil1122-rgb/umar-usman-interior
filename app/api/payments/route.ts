@@ -26,6 +26,14 @@ export async function GET(request: NextRequest) {
     const invoiceId = searchParams.get('invoiceId');
     const limit = Math.min(Number(searchParams.get('limit')) || 50, 100);
 
+    // General Payment Ledger is locked: only admin can view
+    if (session.role === 'worker' && !customerId && !invoiceId) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied. Only admin can access the payment ledger.' },
+        { status: 403 }
+      );
+    }
+
     const query: Record<string, unknown> = { userId: userObjectId };
     if (customerId) query.customerId = new mongoose.Types.ObjectId(customerId);
     if (invoiceId) query.invoiceId = new mongoose.Types.ObjectId(invoiceId);
