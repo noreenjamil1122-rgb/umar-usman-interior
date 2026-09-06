@@ -76,16 +76,17 @@ export async function POST(request: NextRequest) {
     // Check if user has payment password configured
     const settings = await Settings.findOne({ userId: userObjectId });
     if (settings?.paymentPasswordHash) {
-      if (!password) {
+      if (password) {
+        const isPasswordValid = await comparePassword(password, settings.paymentPasswordHash);
+        if (!isPasswordValid) {
+          return NextResponse.json(
+            { success: false, error: 'Incorrect payment confirmation password.' },
+            { status: 403 }
+          );
+        }
+      } else if (session.role === 'worker') {
         return NextResponse.json(
           { success: false, error: 'Payment confirmation password is required.' },
-          { status: 403 }
-        );
-      }
-      const isPasswordValid = await comparePassword(password, settings.paymentPasswordHash);
-      if (!isPasswordValid) {
-        return NextResponse.json(
-          { success: false, error: 'Incorrect payment confirmation password.' },
           { status: 403 }
         );
       }

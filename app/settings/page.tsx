@@ -556,9 +556,9 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  {/* 3. Payment Update */}
+                  {/* 3. Payment Section & Edit Lock */}
                   <div className="p-3 bg-paper rounded-xl border border-warm-border space-y-1.5">
-                    <div className="font-semibold text-ink">Payment Update</div>
+                    <div className="font-semibold text-ink">Payment Section Lock</div>
                     <div>
                       {settings.hasPaymentPassword ? (
                         <Badge variant="success" size="sm">Active</Badge>
@@ -628,7 +628,7 @@ export default function SettingsPage() {
                     >
                       <option value="delete">1. Delete Protection (Deletions of books, wallpapers, customers, invoices)</option>
                       <option value="hide">2. Hide Figures Protection (Unmask daily sales and payment collections)</option>
-                      <option value="payment">3. Payment Update Protection (Add/edit invoice payment ledger entries)</option>
+                      <option value="payment">3. Payment Section & Edit Lock (Restricts editing, altering or deleting invoice payments)</option>
                       <option value="supplier">4. Supplier Invoices Lock (Gate vendor billing view)</option>
                     </select>
                   </div>

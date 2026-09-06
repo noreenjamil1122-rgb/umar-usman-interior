@@ -23,6 +23,7 @@ import {
   Share2,
   Edit,
   Trash2,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
@@ -87,6 +88,20 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
   const [paymentRef, setPaymentRef] = useState('');
   const [paymentPassword, setPaymentPassword] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Payment Action (Edit / Delete) State & Password Gate
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(null);
+  const [pendingPaymentAction, setPendingPaymentAction] = useState<'edit' | 'delete' | null>(null);
+  const [isPaymentAuthOpen, setIsPaymentAuthOpen] = useState(false);
+  const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] = useState(false);
+  const [isDeletePaymentConfirmOpen, setIsDeletePaymentConfirmOpen] = useState(false);
+  const [editPaymentFormData, setEditPaymentFormData] = useState({
+    amount: 0,
+    date: new Date().toISOString().split('T')[0],
+    method: 'Cash',
+    reference: '',
+  });
+  const [paymentActionLoading, setPaymentActionLoading] = useState(false);
 
   // Edit Invoice Modal & Password Gate
   const [isEditAuthOpen, setIsEditAuthOpen] = useState(false);
@@ -306,6 +321,82 @@ Reference: ${invoice.reference || '-'}`;
       toast.error('Failed to submit payment');
     } finally {
       setPaymentLoading(false);
+    }
+  };
+
+  const handleInitiateEditPayment = (p: PaymentRecord) => {
+    setSelectedPayment(p);
+    setEditPaymentFormData({
+      amount: p.amount,
+      date: p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      method: p.method || 'Cash',
+      reference: p.reference || '',
+    });
+    setPendingPaymentAction('edit');
+    setIsPaymentAuthOpen(true);
+  };
+
+  const handleInitiateDeletePayment = (p: PaymentRecord) => {
+    setSelectedPayment(p);
+    setPendingPaymentAction('delete');
+    setIsPaymentAuthOpen(true);
+  };
+
+  const handlePaymentAuthAuthorized = () => {
+    setIsPaymentAuthOpen(false);
+    if (pendingPaymentAction === 'edit') {
+      setIsEditPaymentModalOpen(true);
+    } else if (pendingPaymentAction === 'delete') {
+      setIsDeletePaymentConfirmOpen(true);
+    }
+  };
+
+  const handleSavePaymentEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPayment) return;
+    setPaymentActionLoading(true);
+    try {
+      const res = await fetch(`/api/payments/${selectedPayment._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editPaymentFormData),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error || 'Failed to update payment');
+        return;
+      }
+      toast.success('Payment updated successfully');
+      setIsEditPaymentModalOpen(false);
+      setSelectedPayment(null);
+      fetchInvoice();
+    } catch {
+      toast.error('Network error while updating payment');
+    } finally {
+      setPaymentActionLoading(false);
+    }
+  };
+
+  const handleConfirmDeletePayment = async () => {
+    if (!selectedPayment) return;
+    setPaymentActionLoading(true);
+    try {
+      const res = await fetch(`/api/payments/${selectedPayment._id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error || 'Failed to delete payment');
+        return;
+      }
+      toast.success('Payment deleted and balances updated');
+      setIsDeletePaymentConfirmOpen(false);
+      setSelectedPayment(null);
+      fetchInvoice();
+    } catch {
+      toast.error('Network error while deleting payment');
+    } finally {
+      setPaymentActionLoading(false);
     }
   };
 
@@ -544,8 +635,14 @@ Reference: ${invoice.reference || '-'}`;
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Invoice Payments</CardTitle>
-                  <CardDescription>Ledger records allocated to this bill</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>Invoice Payments</CardTitle>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                      <Lock className="w-2.5 h-2.5 text-amber-600" />
+                      Admin Locked
+                    </span>
+                  </div>
+                  <CardDescription>Ledger records allocated to this bill (Admin password protected)</CardDescription>
                 </div>
                 {!isPaid && (
                   <Button
@@ -572,17 +669,40 @@ Reference: ${invoice.reference || '-'}`;
                       <th className="py-2 px-4">Amount</th>
                       <th className="py-2 px-4">Method</th>
                       <th className="py-2 px-4">Reference</th>
+                      <th className="py-2 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {payments.map((p) => (
-                      <tr key={p._id}>
+                      <tr key={p._id} className="hover:bg-paper/50">
                         <td className="py-2.5 px-4 text-ink-muted">{formatDateTime(p.date)}</td>
                         <td className="py-2.5 px-4 font-bold text-status-success">
                           {formatCurrency(p.amount)}
                         </td>
                         <td className="py-2.5 px-4 text-ink">{p.method}</td>
                         <td className="py-2.5 px-4 text-ink-muted">{p.reference || '-'}</td>
+                        <td className="py-2.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleInitiateEditPayment(p)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-teal hover:bg-teal/10 transition-colors"
+                              title="Edit Payment (Admin Password Required)"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                              <Lock className="w-2.5 h-2.5 text-amber-600" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleInitiateDeletePayment(p)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-status-danger hover:bg-red-50 transition-colors"
+                              title="Delete Payment (Admin Password Required)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -902,6 +1022,149 @@ Reference: ${invoice.reference || '-'}`;
         protectionType="delete"
         onAuthorized={confirmDeleteInvoice}
       />
+
+      {/* Payment Action Password Gate */}
+      <PasswordPromptModal
+        isOpen={isPaymentAuthOpen}
+        onClose={() => {
+          setIsPaymentAuthOpen(false);
+          setSelectedPayment(null);
+          setPendingPaymentAction(null);
+        }}
+        title={`Authorize Payment ${pendingPaymentAction === 'edit' ? 'Edit' : 'Deletion'}`}
+        actionDescription={`Enter the admin password to ${pendingPaymentAction === 'edit' ? 'edit' : 'permanently delete'} this payment of Rs. ${selectedPayment?.amount.toLocaleString() || ''}.`}
+        protectionType="payment"
+        onAuthorized={handlePaymentAuthAuthorized}
+      />
+
+      {/* Edit Payment Modal */}
+      {selectedPayment && (
+        <Modal
+          isOpen={isEditPaymentModalOpen}
+          onClose={() => {
+            setIsEditPaymentModalOpen(false);
+            setSelectedPayment(null);
+          }}
+          title="Edit Invoice Payment"
+          description="Update recorded payment details. Invoice balance will be recalculated automatically."
+        >
+          <form onSubmit={handleSavePaymentEdit} className="space-y-4">
+            <Input
+              label="Payment Amount (PKR)"
+              type="number"
+              min="0.01"
+              required
+              value={editPaymentFormData.amount || ''}
+              onChange={(e) =>
+                setEditPaymentFormData({ ...editPaymentFormData, amount: Number(e.target.value) })
+              }
+            />
+
+            <Input
+              label="Payment Date"
+              type="date"
+              required
+              value={editPaymentFormData.date}
+              onChange={(e) =>
+                setEditPaymentFormData({ ...editPaymentFormData, date: e.target.value })
+              }
+            />
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
+                Payment Method
+              </label>
+              <select
+                value={editPaymentFormData.method}
+                onChange={(e) =>
+                  setEditPaymentFormData({ ...editPaymentFormData, method: e.target.value })
+                }
+                className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+              >
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Cheque">Cheque</option>
+                <option value="JazzCash">JazzCash</option>
+                <option value="EasyPaisa">EasyPaisa</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <Input
+              label="Reference / Transaction Note"
+              type="text"
+              placeholder="e.g. Online transfer slip #7821"
+              value={editPaymentFormData.reference}
+              onChange={(e) =>
+                setEditPaymentFormData({ ...editPaymentFormData, reference: e.target.value })
+              }
+            />
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-warm-borderLight">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditPaymentModalOpen(false);
+                  setSelectedPayment(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="teal"
+                isLoading={paymentActionLoading}
+              >
+                Save Payment Changes
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Delete Payment Confirmation Modal */}
+      {selectedPayment && (
+        <Modal
+          isOpen={isDeletePaymentConfirmOpen}
+          onClose={() => {
+            setIsDeletePaymentConfirmOpen(false);
+            setSelectedPayment(null);
+          }}
+          title="Delete Invoice Payment"
+          description="Are you sure you want to delete this payment record?"
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+              <p className="font-semibold">Warning:</p>
+              <p>
+                Deleting this payment of <strong>PKR {selectedPayment.amount.toLocaleString()}</strong> will increase the invoice outstanding balance (Udhar) by the same amount.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-warm-borderLight">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsDeletePaymentConfirmOpen(false);
+                  setSelectedPayment(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                isLoading={paymentActionLoading}
+                onClick={handleConfirmDeletePayment}
+              >
+                Confirm Delete
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </AppShell>
   );
 }

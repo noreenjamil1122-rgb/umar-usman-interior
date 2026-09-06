@@ -8,7 +8,9 @@ export type ActivityType =
   | 'Wallpaper Deleted'
   | 'Invoice Edited'
   | 'Invoice Deleted'
-  | 'Payment Recorded';
+  | 'Payment Recorded'
+  | 'Payment Edited'
+  | 'Payment Deleted';
 
 export interface IActivityLog extends Document {
   userId: mongoose.Types.ObjectId;
@@ -45,6 +47,8 @@ const ActivityLogSchema = new Schema<IActivityLog>(
         'Invoice Edited',
         'Invoice Deleted',
         'Payment Recorded',
+        'Payment Edited',
+        'Payment Deleted',
       ],
       index: true,
     },

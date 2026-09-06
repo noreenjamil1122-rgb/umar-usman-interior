@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, comparePassword } from '@/lib/auth';
 import Invoice from '@/models/Invoice';
 import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
@@ -101,6 +101,24 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
     // Handle additional payment entry if provided
     if (additionalPayment && typeof additionalPayment.amount === 'number' && additionalPayment.amount > 0) {
+      const settings = await Settings.findOne({ userId: userObjectId }).lean();
+      if (settings?.paymentPasswordHash && session.role === 'worker') {
+        const password = body.paymentPassword || additionalPayment.password;
+        if (!password) {
+          return NextResponse.json(
+            { success: false, error: 'Payment lock is active. Admin password is required to record additional payments.' },
+            { status: 403 }
+          );
+        }
+        const isValid = await comparePassword(password, settings.paymentPasswordHash);
+        if (!isValid) {
+          return NextResponse.json(
+            { success: false, error: 'Incorrect payment security password. Access denied.' },
+            { status: 403 }
+          );
+        }
+      }
+
       const paymentAmount = roundMoney(additionalPayment.amount);
       const paymentDate = additionalPayment.date ? new Date(additionalPayment.date) : new Date();
       const paymentMethod = additionalPayment.method || 'Cash';

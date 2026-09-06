@@ -144,7 +144,11 @@ export interface ActivityLogType {
     | 'Warehouse Deleted'
     | 'Book Deleted'
     | 'Wallpaper Deleted'
-    | 'Invoice Edited';
+    | 'Invoice Edited'
+    | 'Invoice Deleted'
+    | 'Payment Recorded'
+    | 'Payment Edited'
+    | 'Payment Deleted';
   detail: string;
   qty?: number;
 }
