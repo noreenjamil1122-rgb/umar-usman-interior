@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, password } = body;
+    const type = body.type || body.protectionType;
+    const { password } = body;
 
     if (!['delete', 'hide', 'payment', 'supplier'].includes(type)) {
       return NextResponse.json(
@@ -29,7 +30,8 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = session.role === 'worker' && session.adminId ? session.adminId : session.userId;
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const settings = await Settings.findOne({ userId: userObjectId }).lean();
     if (!settings) {

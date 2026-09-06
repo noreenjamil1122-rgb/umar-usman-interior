@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     const body = await request.json();
-    const validation = CustomerSchema.safeParse(body);
+    const validation = CustomerSchema.partial().safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(

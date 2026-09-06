@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +16,7 @@ import {
   RefreshCw,
   Lock,
   Unlock,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
@@ -36,6 +38,7 @@ interface Invoice {
 }
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -43,6 +46,7 @@ export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState<'customer' | 'supplier'>('customer');
   const [supplierUnlocked, setSupplierUnlocked] = useState(false);
   const [isSupplierAuthOpen, setIsSupplierAuthOpen] = useState(false);
+  const [hasSupplierPassword, setHasSupplierPassword] = useState<boolean | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'worker'>('admin');
 
   // Delete invoice with password
@@ -59,6 +63,15 @@ export default function InvoicesPage() {
       .then((d) => {
         if (d.authenticated && d.user) {
           setUserRole(d.user.role || 'admin');
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data) {
+          setHasSupplierPassword(Boolean(d.data.hasSupplierPassword));
         }
       })
       .catch(() => {});
@@ -91,11 +104,29 @@ export default function InvoicesPage() {
   }, [search, statusFilter, activeTab]);
 
   const handleTabChange = (tab: 'customer' | 'supplier') => {
-    if (tab === 'supplier' && !supplierUnlocked) {
+    if (tab === 'supplier') {
+      if (supplierUnlocked) {
+        setActiveTab('supplier');
+        return;
+      }
+      if (hasSupplierPassword === false) {
+        toast.error('Pehle Settings mein password set karein');
+        router.push('/settings');
+        return;
+      }
       setIsSupplierAuthOpen(true);
       return;
     }
     setActiveTab(tab);
+  };
+
+  const handleLockSupplier = () => {
+    setSupplierUnlocked(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('supplier_unlocked');
+    }
+    setActiveTab('customer');
+    toast.info('Supplier Invoices locked');
   };
 
   const handleSupplierAuthorized = () => {
@@ -173,35 +204,52 @@ export default function InvoicesPage() {
       </div>
 
       {/* Tabs: Customer vs Supplier */}
-      <div className="flex items-center gap-2 mb-4 border-b border-warm-border pb-2">
-        <button
-          onClick={() => handleTabChange('customer')}
-          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'customer'
-              ? 'bg-teal text-white shadow-warm'
-              : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
-          }`}
-        >
-          Customer Invoices
-        </button>
-        <button
-          onClick={() => handleTabChange('supplier')}
-          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-            activeTab === 'supplier'
-              ? 'bg-brass-dark text-white shadow-warm'
-              : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
-          }`}
-        >
-          {supplierUnlocked ? (
-            <Unlock className="w-3.5 h-3.5 text-emerald-600" />
-          ) : (
-            <Lock className="w-3.5 h-3.5 text-brass-dark" />
-          )}
-          <span>Supplier Invoices</span>
-          {!supplierUnlocked && (
-            <span className="text-[10px] px-1 py-0.2 bg-warm-border rounded text-ink-muted">Locked</span>
-          )}
-        </button>
+      <div className="flex items-center justify-between gap-2 mb-4 border-b border-warm-border pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleTabChange('customer')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'customer'
+                ? 'bg-teal text-white shadow-warm'
+                : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Customer Invoices</span>
+          </button>
+          <button
+            onClick={() => handleTabChange('supplier')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'supplier'
+                ? 'bg-brass-dark text-white shadow-warm'
+                : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
+            }`}
+          >
+            {supplierUnlocked ? (
+              <Unlock className="w-3.5 h-3.5 text-emerald-600" />
+            ) : (
+              <Lock className="w-3.5 h-3.5 text-brass-dark" />
+            )}
+            <span>Supplier Invoices</span>
+            {!supplierUnlocked && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-warm-border rounded text-ink-muted font-medium">Locked</span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === 'supplier' && supplierUnlocked && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleLockSupplier}
+            className="h-8 px-2.5 text-xs text-status-danger border-status-danger/30 hover:bg-status-dangerLight flex items-center gap-1.5"
+            title="Lock Supplier Invoices"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Lock</span>
+          </Button>
+        )}
       </div>
 
       {/* Filter and Search Card */}
@@ -274,9 +322,13 @@ export default function InvoicesPage() {
           ) : invoices.length === 0 ? (
             <div className="py-16 text-center text-ink-muted space-y-3">
               <FileText className="w-12 h-12 mx-auto text-ink-muted/40" />
-              <div className="text-base font-semibold text-ink">No invoices found</div>
+              <div className="text-base font-semibold text-ink">
+                {activeTab === 'supplier' ? 'No supplier invoices yet.' : 'No invoices found'}
+              </div>
               <p className="text-xs max-w-sm mx-auto">
-                No billing records match your query. Click &ldquo;Create New Invoice&rdquo; to issue a bill.
+                {activeTab === 'supplier'
+                  ? 'No vendor invoices have been recorded yet.'
+                  : 'No billing records match your query. Click \u201cCreate New Invoice\u201d to issue a bill.'}
               </p>
             </div>
           ) : (
@@ -285,7 +337,7 @@ export default function InvoicesPage() {
                 <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
                   <tr>
                     <th className="py-3 px-4">Invoice #</th>
-                    <th className="py-3 px-4">Party</th>
+                    <th className="py-3 px-4">{activeTab === 'supplier' ? 'Supplier' : 'Customer'}</th>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4 text-right">Total Amount</th>
                     <th className="py-3 px-4 text-right">Paid (Advance)</th>

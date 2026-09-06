@@ -39,10 +39,13 @@ export async function GET(request: NextRequest) {
     if (customerId) {
       query.customerId = new mongoose.Types.ObjectId(customerId);
     } else if (partyType) {
-      const partyFilter = partyType === 'supplier' ? 'supplier' : { $ne: 'supplier' };
-      const matchedCustomers = await Customer.find({ userId: userObjectId, type: partyFilter }).select('_id').lean();
-      const customerIds = matchedCustomers.map((c) => c._id);
-      query.customerId = { $in: customerIds };
+      const supplierCustomers = await Customer.find({ userId: userObjectId, type: 'supplier' }).select('_id').lean();
+      const supplierIds = supplierCustomers.map((c) => c._id);
+      if (partyType === 'supplier') {
+        query.customerId = { $in: supplierIds };
+      } else {
+        query.customerId = { $nin: supplierIds };
+      }
     }
 
     if (status === 'paid') {
@@ -157,9 +160,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Financial calculations
-    const discountRate = Math.min(Math.max(discount, 0), 100);
-    const discountAmount = roundMoney((subtotal * discountRate) / 100);
-    const taxableAmount = roundMoney(subtotal - discountAmount);
+    const rawDiscount = Math.max(Number(discount) || 0, 0);
+    const discountAmount = Math.min(rawDiscount, subtotal);
+    const taxableAmount = roundMoney(Math.max(0, subtotal - discountAmount));
     const taxRate = Math.max(tax, 0);
     const taxAmount = roundMoney((taxableAmount * taxRate) / 100);
     const total = roundMoney(taxableAmount + taxAmount);
@@ -185,7 +188,7 @@ export async function POST(request: NextRequest) {
       sellerContact: validation.data.sellerContact || '0300-4131532',
       items: verifiedItems,
       subtotal,
-      discount: discountRate,
+      discount: discountAmount,
       tax: taxRate,
       total,
       paid: safePaid,

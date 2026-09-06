@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = session.role === 'worker' && session.adminId ? session.adminId : session.userId;
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     let settings = await Settings.findOne({ userId: userObjectId }).lean();
 

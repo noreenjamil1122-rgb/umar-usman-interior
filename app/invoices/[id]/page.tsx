@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime, roundMoney } from '@/lib/utils';
 import {
   FileText,
   Printer,
@@ -606,9 +606,15 @@ Reference: ${invoice.reference || '-'}`;
 
               {invoice.discount > 0 && (
                 <div className="flex justify-between pb-2 border-b border-warm-borderLight text-status-danger">
-                  <span>Discount ({invoice.discount}%):</span>
                   <span>
-                    - {formatCurrency((invoice.subtotal * invoice.discount) / 100)}
+                    Discount {invoice.discount <= 100 && roundMoney(invoice.subtotal - (invoice.subtotal * invoice.discount) / 100) === invoice.total ? `(${invoice.discount}%)` : '(Rs.)'}:
+                  </span>
+                  <span>
+                    - {formatCurrency(
+                      invoice.discount <= 100 && roundMoney(invoice.subtotal - (invoice.subtotal * invoice.discount) / 100) === invoice.total
+                        ? (invoice.subtotal * invoice.discount) / 100
+                        : invoice.discount
+                    )}
                   </span>
                 </div>
               )}
@@ -617,7 +623,7 @@ Reference: ${invoice.reference || '-'}`;
                 <div className="flex justify-between pb-2 border-b border-warm-borderLight">
                   <span className="text-ink-muted">Tax ({invoice.tax}%):</span>
                   <span className="font-semibold text-ink">
-                    + {formatCurrency(((invoice.subtotal - (invoice.subtotal * invoice.discount) / 100) * invoice.tax) / 100)}
+                    + {formatCurrency((Math.max(0, invoice.subtotal - (invoice.discount <= 100 && roundMoney(invoice.subtotal - (invoice.subtotal * invoice.discount) / 100) === invoice.total ? (invoice.subtotal * invoice.discount) / 100 : invoice.discount)) * invoice.tax) / 100)}
                   </span>
                 </div>
               )}

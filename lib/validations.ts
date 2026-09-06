@@ -85,7 +85,7 @@ export const InvoiceSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   date: z.string().optional(),
   items: z.array(InvoiceItemSchema).min(1, 'At least one line item is required'),
-  discount: z.coerce.number().min(0).max(100).default(0),
+  discount: z.coerce.number().min(0).default(0),
   tax: z.coerce.number().min(0).default(0),
   paid: z.coerce.number().default(0),
   method: z.string().default('Cash'),

@@ -510,13 +510,20 @@ export default function SettingsPage() {
                         <Badge variant="neutral" size="sm">Not Set</Badge>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPwdType('delete')}
+                      className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
+                    >
+                      {settings.hasDeletePassword ? 'Change Password' : 'Set Password'}
+                    </button>
                     {settings.hasDeletePassword && (
                       <button
                         type="button"
                         onClick={() => handleRemovePassword('delete')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
-                        Remove
+                        Remove Protection
                       </button>
                     )}
                   </div>
@@ -531,13 +538,20 @@ export default function SettingsPage() {
                         <Badge variant="neutral" size="sm">Not Set</Badge>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPwdType('hide')}
+                      className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
+                    >
+                      {settings.hasHidePassword ? 'Change Password' : 'Set Password'}
+                    </button>
                     {settings.hasHidePassword && (
                       <button
                         type="button"
                         onClick={() => handleRemovePassword('hide')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
-                        Remove
+                        Remove Protection
                       </button>
                     )}
                   </div>
@@ -552,13 +566,20 @@ export default function SettingsPage() {
                         <Badge variant="neutral" size="sm">Not Set</Badge>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPwdType('payment')}
+                      className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
+                    >
+                      {settings.hasPaymentPassword ? 'Change Password' : 'Set Password'}
+                    </button>
                     {settings.hasPaymentPassword && (
                       <button
                         type="button"
                         onClick={() => handleRemovePassword('payment')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
-                        Remove
+                        Remove Protection
                       </button>
                     )}
                   </div>
@@ -573,13 +594,20 @@ export default function SettingsPage() {
                         <Badge variant="neutral" size="sm">Not Set</Badge>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPwdType('supplier')}
+                      className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
+                    >
+                      {settings.hasSupplierPassword ? 'Change Password' : 'Set Password'}
+                    </button>
                     {settings.hasSupplierPassword && (
                       <button
                         type="button"
                         onClick={() => handleRemovePassword('supplier')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
-                        Remove
+                        Remove Protection
                       </button>
                     )}
                   </div>

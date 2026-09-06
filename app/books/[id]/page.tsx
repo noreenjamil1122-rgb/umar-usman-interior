@@ -18,7 +18,7 @@ import {
   Minus,
   RefreshCw,
   Search,
-  Camera,
+  Image as ImageIcon,
   Upload,
   FileSpreadsheet,
   Trash2,
@@ -494,9 +494,9 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
               setBulkRows([]);
               setIsBulkModalOpen(true);
             }}
-            leftIcon={<FileSpreadsheet className="w-4 h-4 text-emerald-700" />}
+            leftIcon={<ImageIcon className="w-4 h-4 text-emerald-700" />}
           >
-            📷 Import Sheet (Bulk)
+            🖼 Import Sheet (Bulk)
           </Button>
 
           <Button
@@ -705,12 +705,16 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                     className="h-6 text-[11px] px-2 text-teal border-teal/40 hover:bg-teal-subtle"
                     onClick={() => fileInputRef.current?.click()}
                     isLoading={scanLoading}
-                    leftIcon={<Camera className="w-3 h-3" />}
+                    leftIcon={<ImageIcon className="w-3 h-3" />}
+                    title="Choose a photo from gallery or computer"
                   >
-                    📷 Scan from Photo
+                    🖼 Choose Photo (Gallery/Computer)
                   </Button>
                 </div>
               </div>
+              <p className="text-[10px] text-ink-muted mb-1">
+                Select a photo from your gallery or computer. AI will detect and fill the WP number.
+              </p>
               <input
                 type="text"
                 required
@@ -844,7 +848,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
               <div>
                 <h3 className="text-sm font-bold text-ink">Upload Stock Sheet Photo</h3>
                 <p className="text-xs text-ink-muted mt-1 max-w-sm mx-auto">
-                  Take a clear photo of your wallpaper table or ledger. Claude AI will read the codes and quantities.
+                  Choose a photo from your phone gallery or browse from your computer. AI will read the codes and quantities.
                 </p>
               </div>
               <Button
@@ -853,9 +857,9 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                 size="sm"
                 onClick={() => sheetInputRef.current?.click()}
                 isLoading={bulkLoading}
-                leftIcon={<Camera className="w-4 h-4" />}
+                leftIcon={<ImageIcon className="w-4 h-4" />}
               >
-                {bulkLoading ? 'Analyzing Sheet with AI...' : 'Choose or Capture Photo'}
+                {bulkLoading ? 'Analyzing Sheet with AI...' : '🖼 Choose Photo (Gallery/Computer)'}
               </Button>
             </div>
           ) : (
