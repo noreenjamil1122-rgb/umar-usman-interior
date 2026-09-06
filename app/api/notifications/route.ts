@@ -8,6 +8,8 @@ import Payment from '@/models/Payment';
 import Customer from '@/models/Customer';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession(request);

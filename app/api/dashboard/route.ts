@@ -8,6 +8,8 @@ import Invoice from '@/models/Invoice';
 import Payment from '@/models/Payment';
 import Settings from '@/models/Settings';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession(request);
