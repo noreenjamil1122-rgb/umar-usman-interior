@@ -45,6 +45,14 @@ export function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
+  // Handle root URL directly to prevent any intermediate flash
+  if (pathname === '/') {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    return NextResponse.redirect(new URL('/warehouses', request.url));
+  }
+
   // If accessing protected page without token, redirect to /login
   if (isProtectedRoute && !token) {
     const loginUrl = new URL('/login', request.url);

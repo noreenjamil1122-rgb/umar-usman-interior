@@ -14,12 +14,25 @@ export async function GET(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = session.role === 'worker' && session.adminId ? session.adminId : session.userId;
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
-    const logs = await ActivityLog.find({ userId: userObjectId })
+    const rawLogs = await ActivityLog.find({ userId: userObjectId })
       .sort({ dateTime: -1 })
-      .limit(100)
+      .limit(200)
       .lean();
+
+    const logs = rawLogs.map((log) => ({
+      _id: String(log._id),
+      type: log.type,
+      action: log.type,
+      detail: log.detail || '',
+      qty: log.qty,
+      dateTime: log.dateTime ? new Date(log.dateTime).toISOString() : new Date().toISOString(),
+      createdAt: log.createdAt ? new Date(log.createdAt).toISOString() : (log.dateTime ? new Date(log.dateTime).toISOString() : new Date().toISOString()),
+      userName: session.businessName || 'Admin',
+      userRole: session.role || 'admin',
+    }));
 
     return NextResponse.json({
       success: true,

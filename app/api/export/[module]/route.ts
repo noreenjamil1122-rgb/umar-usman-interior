@@ -8,6 +8,7 @@ import Product from '@/models/Product';
 import Invoice from '@/models/Invoice';
 import Payment from '@/models/Payment';
 import StockHistory from '@/models/StockHistory';
+import ActivityLog from '@/models/ActivityLog';
 
 interface RouteContext {
   params: { module: string };
@@ -21,7 +22,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = session.role === 'worker' && session.adminId ? session.adminId : session.userId;
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const { module } = params;
 
     let csvData: Record<string, unknown>[] = [];
@@ -123,6 +125,17 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
           'Previous Stock': h.prevStock,
           'New Stock': h.newStock,
           Reference: h.reference || '',
+        }));
+        break;
+      }
+
+      case 'activity-log': {
+        const logs = await ActivityLog.find({ userId: userObjectId }).sort({ dateTime: -1 }).lean();
+        csvData = logs.map((l) => ({
+          Date: l.dateTime ? new Date(l.dateTime).toLocaleString('en-GB') : '',
+          Action: l.type,
+          Quantity: l.qty !== undefined && l.qty !== null ? l.qty : '',
+          Detail: l.detail || '',
         }));
         break;
       }

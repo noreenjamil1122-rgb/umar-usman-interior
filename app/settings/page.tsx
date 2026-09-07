@@ -28,12 +28,14 @@ import { toast } from 'sonner';
 
 interface ActivityLogItem {
   _id: string;
-  action: string;
+  action?: string;
+  type?: string;
   detail: string;
   qty?: number;
   userRole?: string;
   userName?: string;
-  createdAt: string;
+  createdAt?: string;
+  dateTime?: string;
 }
 
 export default function SettingsPage() {
@@ -264,14 +266,19 @@ export default function SettingsPage() {
     }
 
     const headers = ['Date & Time', 'Action', 'Quantity', 'Detail', 'Role', 'User'];
-    const rows = activityLogs.map((log) => [
-      `"${new Date(log.createdAt).toLocaleString()}"`,
-      `"${log.action}"`,
-      log.qty || '',
-      `"${log.detail.replace(/"/g, '""')}"`,
-      `"${log.userRole || ''}"`,
-      `"${log.userName || ''}"`,
-    ]);
+    const rows = activityLogs.map((log) => {
+      const actionText = log.type || log.action || 'Activity';
+      const dateVal = log.dateTime || log.createdAt ? new Date(log.dateTime || log.createdAt || '').toLocaleString() : '';
+      const detailVal = (log.detail || '').replace(/"/g, '""');
+      return [
+        `"${dateVal}"`,
+        `"${actionText.replace(/"/g, '""')}"`,
+        log.qty !== undefined && log.qty !== null ? log.qty : '',
+        `"${detailVal}"`,
+        `"${(log.userRole || 'admin').replace(/"/g, '""')}"`,
+        `"${(log.userName || 'Admin').replace(/"/g, '""')}"`,
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -698,13 +705,15 @@ export default function SettingsPage() {
                       </thead>
                       <tbody className="divide-y divide-warm-borderLight">
                         {activityLogs.map((log) => {
-                          const isDelete = log.action.includes('delete');
-                          const isMinus = log.action.includes('minus');
+                          const actionText = log.type || log.action || 'Activity';
+                          const lowerAction = actionText.toLowerCase();
+                          const isDelete = lowerAction.includes('delete');
+                          const isMinus = lowerAction.includes('minus');
 
                           return (
                             <tr key={log._id} className="hover:bg-paper transition-colors">
                               <td className="py-2.5 px-4 text-ink-muted whitespace-nowrap">
-                                {formatDateTime(log.createdAt)}
+                                {formatDateTime(log.dateTime || log.createdAt || '')}
                               </td>
                               <td className="py-2.5 px-4">
                                 <span
@@ -716,7 +725,7 @@ export default function SettingsPage() {
                                       : 'bg-teal-subtle text-teal'
                                   }`}
                                 >
-                                  {log.action.replace('_', ' ')}
+                                  {actionText.replace('_', ' ')}
                                 </span>
                               </td>
                               <td className="py-2.5 px-4 text-ink font-medium max-w-xs truncate">
@@ -727,7 +736,7 @@ export default function SettingsPage() {
                               </td>
                               <td className="py-2.5 px-4 text-right text-ink-muted">
                                 <span className="font-semibold text-ink">{log.userName || 'Admin'}</span>
-                                <span className="text-[10px] ml-1">({log.userRole || 'staff'})</span>
+                                <span className="text-[10px] ml-1">({log.userRole || 'admin'})</span>
                               </td>
                             </tr>
                           );
@@ -812,17 +821,17 @@ export default function SettingsPage() {
                       <Download className="w-4 h-4 text-teal shrink-0" />
                     </a>
 
-                    <button
-                      type="button"
-                      onClick={exportActivityLogCsv}
-                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between text-left transition-colors"
+                    <a
+                      href="/api/export/activity-log"
+                      download
+                      className="p-4 rounded-xl border border-warm-border bg-paper hover:bg-paper-light flex items-center justify-between transition-colors"
                     >
                       <div>
                         <div className="font-bold text-xs text-ink">Activity Log CSV</div>
                         <div className="text-[11px] text-ink-muted">Administrative audit entries and reductions</div>
                       </div>
                       <Download className="w-4 h-4 text-teal shrink-0" />
-                    </button>
+                    </a>
                   </div>
                 </CardContent>
               </Card>
