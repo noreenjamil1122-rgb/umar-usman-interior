@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   title: 'Wallpaper Manager | Umar Usman Interior, Lahore',
   description:
     'Comprehensive full-stack business management application for Umar Usman Interior, Lahore, Pakistan. Manage inventory, wallpaper catalogs, customers, invoices, and payments.',
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo.png', sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export const viewport: Viewport = {

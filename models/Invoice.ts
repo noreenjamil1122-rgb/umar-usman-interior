@@ -166,6 +166,7 @@ const InvoiceSchema = new Schema<IInvoice>(
 InvoiceSchema.index({ userId: 1, number: 1 }, { unique: true });
 InvoiceSchema.index({ userId: 1, customerId: 1, date: -1 });
 InvoiceSchema.index({ userId: 1, date: -1 });
+InvoiceSchema.index({ userId: 1, remaining: 1, date: -1 });
 
 // Delete cached model in dev mode to apply schema edits
 if (process.env.NODE_ENV !== 'production' && mongoose.models.Invoice) {

@@ -120,6 +120,7 @@ ProductSchema.index({ userId: 1, wp: 1 });
 ProductSchema.index({ userId: 1, design: 1 });
 ProductSchema.index({ userId: 1, bookId: 1 });
 ProductSchema.index({ userId: 1, warehouseId: 1 });
+ProductSchema.index({ userId: 1, stock: 1 });
 
 const Product: Model<IProduct> =
   mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);

@@ -6,6 +6,7 @@ import Invoice from '@/models/Invoice';
 import Product from '@/models/Product';
 import Payment from '@/models/Payment';
 import Customer from '@/models/Customer';
+import Settings from '@/models/Settings';
 import { formatCurrency } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -23,38 +24,41 @@ export async function GET(request: NextRequest) {
     void Product;
     void Payment;
     void Invoice;
+    void Settings;
 
     const businessOwnerId =
       session.role === 'worker' && session.adminId ? session.adminId : session.userId;
     const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
-    // 1. Fetch Outstanding Balance (Udhar) Alerts (top 10 highest remaining)
-    const unpaidInvoices = await Invoice.find({
-      userId: userObjectId,
-      remaining: { $gt: 0 },
-    })
-      .populate('customerId', 'name mobile code')
-      .sort({ remaining: -1 })
-      .limit(8)
-      .lean();
+    // Parallel fetch: Udhar invoices, Low stock products, Recent payments, and Settings
+    const [unpaidInvoices, lowStockProducts, recentPayments, settings] = await Promise.all([
+      Invoice.find({
+        userId: userObjectId,
+        remaining: { $gt: 0 },
+      })
+        .populate('customerId', 'name mobile code')
+        .sort({ remaining: -1 })
+        .limit(8)
+        .lean(),
 
-    // 2. Fetch Low Stock & Out of Stock Alerts
-    const lowStockProducts = await Product.find({
-      userId: userObjectId,
-      $expr: { $lte: ['$stock', '$minStock'] },
-    })
-      .select('wp design stock minStock')
-      .sort({ stock: 1 })
-      .limit(6)
-      .lean();
+      Product.find({
+        userId: userObjectId,
+        $expr: { $lte: ['$stock', '$minStock'] },
+      })
+        .select('wp design stock minStock')
+        .sort({ stock: 1 })
+        .limit(6)
+        .lean(),
 
-    // 3. Fetch Recent Payments Received (last 5)
-    const recentPayments = await Payment.find({ userId: userObjectId })
-      .populate('customerId', 'name')
-      .populate('invoiceId', 'number')
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
+      Payment.find({ userId: userObjectId })
+        .populate('customerId', 'name')
+        .populate('invoiceId', 'number')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+
+      Settings.findOne({ userId: userObjectId }).select('reminderAckDate').lean(),
+    ]);
 
     const notifications = [];
 
@@ -103,10 +107,7 @@ export async function GET(request: NextRequest) {
         unread: false,
       });
     }
-
-    // 4. Check Settings for reminder acknowledgement
-    const Settings = (await import('@/models/Settings')).default;
-    const settings = await Settings.findOne({ userId: userObjectId }).select('reminderAckDate').lean();
+    // Check Settings for reminder acknowledgement
     const todayStr = new Date().toISOString().split('T')[0];
     const ackDateStr = settings?.reminderAckDate ? new Date(settings.reminderAckDate).toISOString().split('T')[0] : '';
     const hasUnackedUdhar = unpaidInvoices.length > 0 && ackDateStr !== todayStr;

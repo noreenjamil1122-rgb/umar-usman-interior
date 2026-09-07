@@ -89,10 +89,10 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
 
   useEffect(() => {
     fetchNotifications();
-    // Real-time polling every 15 seconds
-    const interval = setInterval(fetchNotifications, 15000);
+    // Refresh notifications every 60 seconds
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, [readIds]);
+  }, []);
 
   // Click outside to close dropdown
   useEffect(() => {

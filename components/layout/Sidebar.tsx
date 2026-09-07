@@ -48,9 +48,17 @@ export function Sidebar() {
     role: 'admin' | 'worker';
     name?: string;
     businessName?: string;
-  }>({
-    role: 'admin',
-    name: 'Admin',
+  }>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('crm_user_session');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return {
+      role: 'admin',
+      name: 'Admin',
+    };
   });
 
   useEffect(() => {
@@ -58,11 +66,15 @@ export function Sidebar() {
       .then((r) => r.json())
       .then((data) => {
         if (data.authenticated && data.user) {
-          setUserSession({
+          const sessionData = {
             role: data.user.role || 'admin',
             name: data.user.name || data.user.email,
             businessName: data.user.businessName,
-          });
+          };
+          setUserSession(sessionData);
+          try {
+            sessionStorage.setItem('crm_user_session', JSON.stringify(sessionData));
+          } catch {}
         }
       })
       .catch(() => {});
