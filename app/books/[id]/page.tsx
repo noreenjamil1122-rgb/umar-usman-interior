@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/Input';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import { formatCurrency } from '@/lib/utils';
 import {
-  BookOpen,
   ArrowLeft,
   Plus,
   Minus,
@@ -20,14 +19,10 @@ import {
   Search,
   Image as ImageIcon,
   Upload,
-  FileSpreadsheet,
   Trash2,
   Edit2,
-  Sparkles,
   Package,
-  AlertTriangle,
   CheckCircle2,
-  Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 

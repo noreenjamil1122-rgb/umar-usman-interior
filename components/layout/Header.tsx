@@ -7,16 +7,12 @@ import {
   Search,
   Bell,
   Menu,
-  Sparkles,
-  AlertTriangle,
   Layers,
   CreditCard,
   CheckCircle2,
-  X,
   ExternalLink,
   Clock,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';

@@ -16,7 +16,6 @@ import {
   RefreshCw,
   Lock,
   Unlock,
-  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';

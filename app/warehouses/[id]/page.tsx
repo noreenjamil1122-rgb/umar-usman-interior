@@ -4,22 +4,19 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency } from '@/lib/utils';
 import {
-  Warehouse as WarehouseIcon,
   ArrowLeft,
-  Layers,
   Plus,
   Minus,
   RefreshCw,
   Search,
   BookOpen,
-  AlertTriangle,
   Package,
 } from 'lucide-react';
 import { toast } from 'sonner';

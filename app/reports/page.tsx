@@ -7,10 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
-  BarChart3,
-  Calendar,
   Printer,
-  Download,
   Users,
   AlertTriangle,
   Package,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -18,8 +18,6 @@ import {
   Mail,
   User,
   RefreshCw,
-  AlertCircle,
-  Briefcase,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,7 +34,6 @@ export default function StaffPage() {
   const router = useRouter();
   const [workers, setWorkers] = useState<StaffWorker[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'worker'>('admin');
 
   // Add Worker Modal State
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +49,6 @@ export default function StaffPage() {
       const sessRes = await fetch('/api/auth/session');
       const sessData = await sessRes.json();
       if (sessData.authenticated && sessData.user) {
-        setCurrentUserRole(sessData.user.role);
         if (sessData.user.role !== 'admin') {
           toast.error('Access denied. Admin role required.');
           router.replace('/dashboard');

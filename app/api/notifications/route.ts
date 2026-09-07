@@ -6,7 +6,7 @@ import Invoice from '@/models/Invoice';
 import Product from '@/models/Product';
 import Payment from '@/models/Payment';
 import Customer from '@/models/Customer';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 

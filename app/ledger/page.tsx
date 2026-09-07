@@ -7,10 +7,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
-  BookOpen,
-  Search,
-  User,
-  Phone,
   Printer,
   FileText,
   CreditCard,

@@ -3,21 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { Badge } from '@/components/ui/Badge';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import {
   Warehouse as WarehouseIcon,
   Plus,
   Edit2,
   Trash2,
-  Layers,
   RefreshCw,
   ExternalLink,
-  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 

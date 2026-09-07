@@ -7,24 +7,18 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import {
-  FileText,
   Layers,
-  Users,
-  CreditCard,
   AlertTriangle,
   ArrowRight,
   Plus,
   RefreshCw,
-  TrendingUp,
-  PackageX,
   BellRing,
   CheckCircle2,
   Calendar,
   Eye,
   EyeOff,
-  Warehouse,
   BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';

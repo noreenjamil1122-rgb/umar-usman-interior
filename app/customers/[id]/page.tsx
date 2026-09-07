@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -12,9 +12,6 @@ import { Input } from '@/components/ui/Input';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
-  User,
-  Phone,
-  MapPin,
   FileText,
   CreditCard,
   Plus,
@@ -22,9 +19,6 @@ import {
   ArrowLeft,
   RefreshCw,
   Edit2,
-  Calendar,
-  AlertTriangle,
-  Building,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -486,7 +480,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         // Inverted Status colors requested: Paid=Yellow, Processing=Green, Udhar=Red
                         const isFullyPaid = inv.remaining <= 0;
                         const isPartial = inv.remaining > 0 && inv.paid > 0;
-                        const isUnpaid = inv.remaining > 0 && inv.paid === 0;
 
                         return (
                           <tr key={inv._id} className="hover:bg-paper transition-colors">

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Printer, ArrowLeft, Download, RefreshCw, FileText } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
+import { Printer, ArrowLeft, Download, RefreshCw } from 'lucide-react';
 
 interface InvoicePrintData {
   invoice: {

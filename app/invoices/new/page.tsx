@@ -10,16 +10,12 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, roundMoney } from '@/lib/utils';
 import {
-  FileText,
-  User,
   Plus,
   Trash2,
   Search,
   Layers,
   ArrowLeft,
   Save,
-  CheckCircle2,
-  Sparkles,
   Package,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -68,7 +64,6 @@ export default function NewInvoicePage() {
 
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
@@ -140,8 +135,6 @@ export default function NewInvoicePage() {
         }
       } catch (err) {
         console.error('Invoice init error:', err);
-      } finally {
-        setLoading(false);
       }
     };
 

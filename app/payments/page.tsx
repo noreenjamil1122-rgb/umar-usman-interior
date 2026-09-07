@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -15,9 +14,6 @@ import {
   CreditCard,
   Plus,
   Search,
-  User,
-  FileText,
-  Calendar,
   RefreshCw,
   Lock,
   Unlock,
@@ -51,7 +47,6 @@ interface UnpaidInvoiceOption {
 }
 
 export default function PaymentsPage() {
-  const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);

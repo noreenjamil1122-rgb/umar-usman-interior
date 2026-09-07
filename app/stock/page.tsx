@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency } from '@/lib/utils';
@@ -18,13 +17,8 @@ import {
   AlertTriangle,
   BookOpen,
   Warehouse,
-  Layers,
-  TrendingDown,
-  History,
-  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 
 interface ProductItem {
   _id: string;
@@ -74,9 +68,6 @@ export default function StockPage() {
   const [adjustReason, setAdjustReason] = useState('Manual Restock');
   const [adjustNote, setAdjustNote] = useState('');
   const [submittingStock, setSubmittingStock] = useState(false);
-
-  // Password Protection for Subtracting Stock
-  const [isSubtractAuthOpen, setIsSubtractAuthOpen] = useState(false);
 
   const fetchStockData = async () => {
     setLoading(true);
