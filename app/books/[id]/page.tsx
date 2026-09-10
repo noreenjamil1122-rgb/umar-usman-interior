@@ -193,6 +193,47 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
     setIsProductModalOpen(true);
   };
 
+  // Helper to compress camera / gallery photos before uploading to AI Vision
+  const compressImage = (
+    file: File,
+    maxWidth = 1600,
+    maxHeight = 1600,
+    quality = 0.85
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(reader.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // AI Photo Scan for single WP
   const handlePhotoScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -200,32 +241,28 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
     setScanLoading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
+      const base64 = await compressImage(file, 1200, 1200, 0.85);
 
-        const res = await fetch('/api/vision', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'scan_code', imageBase64: base64 }),
-        });
+      const res = await fetch('/api/vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'scan_code', imageBase64: base64 }),
+      });
 
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          toast.error('AI Scan Failed', { description: json.error || 'Could not detect WP code' });
-          setScanLoading(false);
-          return;
-        }
-
-        if (json.data?.code) {
-          setFormData((prev) => ({ ...prev, wp: String(json.data.code).trim() }));
-          toast.success(`Detected WP Code: ${json.data.code}`, {
-            description: 'Design Name automatically updated to match WP number',
-          });
-        }
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error('AI Scan Failed', { description: json.error || 'Could not detect WP code' });
         setScanLoading(false);
-      };
-      reader.readAsDataURL(file);
+        return;
+      }
+
+      if (json.data?.code) {
+        setFormData((prev) => ({ ...prev, wp: String(json.data.code).trim() }));
+        toast.success(`Detected WP Code: ${json.data.code}`, {
+          description: 'Design Name automatically updated to match WP number',
+        });
+      }
+      setScanLoading(false);
     } catch {
       toast.error('Error reading image file');
       setScanLoading(false);
@@ -239,50 +276,46 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
     setBulkLoading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
+      const base64 = await compressImage(file, 1800, 1800, 0.85);
 
-        const res = await fetch('/api/vision', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'import_sheet', imageBase64: base64 }),
-        });
+      const res = await fetch('/api/vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'import_sheet', imageBase64: base64 }),
+      });
 
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          toast.error('AI Sheet Parse Failed', { description: json.error || 'Could not parse sheet' });
-          setBulkLoading(false);
-          return;
-        }
-
-        const rows: Array<{ code: string; qty: number; size?: string; price?: number }> = Array.isArray(
-          json.data
-        )
-          ? json.data
-          : json.data?.items || [];
-
-        if (rows.length === 0) {
-          toast.error('No table rows detected in image. Please try a clearer photo.');
-          setBulkLoading(false);
-          return;
-        }
-
-        // Cross reference against existing products in book
-        const existingMap = new Set(products.map((p) => p.wp.toLowerCase().trim()));
-        const enriched: BulkRow[] = rows.map((r) => ({
-          code: String(r.code || '').trim(),
-          qty: Number(r.qty) || 0,
-          size: r.size || '0.53m x 10m',
-          price: Number(r.price) || 0,
-          isExisting: existingMap.has(String(r.code || '').toLowerCase().trim()),
-        }));
-
-        setBulkRows(enriched);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error('AI Sheet Parse Failed', { description: json.error || 'Could not parse sheet' });
         setBulkLoading(false);
-        toast.success(`AI Extracted ${enriched.length} wallpapers from photo`);
-      };
-      reader.readAsDataURL(file);
+        return;
+      }
+
+      const rows: Array<{ code: string; qty: number; size?: string; price?: number }> = Array.isArray(
+        json.data
+      )
+        ? json.data
+        : json.data?.items || [];
+
+      if (rows.length === 0) {
+        toast.error('No table rows detected in image. Please try a clearer photo.');
+        setBulkLoading(false);
+        return;
+      }
+
+      // Cross reference against existing products in book
+      const existingMap = new Set(products.map((p) => p.wp.toLowerCase().trim()));
+      const enriched: BulkRow[] = rows.map((r) => ({
+        code: String(r.code || '').trim(),
+        qty: Number(r.qty) || 0,
+        size: r.size || '0.53m x 10m',
+        price: Number(r.price) || 0,
+        isExisting: existingMap.has(String(r.code || '').toLowerCase().trim()),
+      }));
+
+      setBulkRows(enriched);
+      setBulkLoading(false);
+      toast.success(`AI Extracted ${enriched.length} wallpapers from photo`);
     } catch {
       toast.error('Error reading sheet file');
       setBulkLoading(false);

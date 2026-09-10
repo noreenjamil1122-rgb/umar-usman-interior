@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
 import { ProductSchema } from '@/lib/validations';
@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || '';
@@ -28,11 +29,15 @@ export async function GET(request: NextRequest) {
     const query: Record<string, unknown> = { userId: userObjectId };
 
     if (search.trim()) {
+      const cleanSearch = search.trim();
+      const strippedSearch = cleanSearch.replace(/[\s-]/g, '');
       query.$or = [
-        { wp: { $regex: search.trim(), $options: 'i' } },
-        { design: { $regex: search.trim(), $options: 'i' } },
-        { brand: { $regex: search.trim(), $options: 'i' } },
-        { color: { $regex: search.trim(), $options: 'i' } },
+        { wp: { $regex: cleanSearch, $options: 'i' } },
+        { wp: { $regex: strippedSearch, $options: 'i' } },
+        { design: { $regex: cleanSearch, $options: 'i' } },
+        { brand: { $regex: cleanSearch, $options: 'i' } },
+        { color: { $regex: cleanSearch, $options: 'i' } },
+        { code: { $regex: cleanSearch, $options: 'i' } },
       ];
     }
 
@@ -92,7 +97,8 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const data = validation.data;
     const initialStock = data.stock || 0;

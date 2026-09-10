@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession, comparePassword } from '@/lib/auth';
+import { getAuthSession, comparePassword, getEffectiveUserId } from '@/lib/auth';
 import Payment from '@/models/Payment';
 import Invoice from '@/models/Invoice';
 import Customer from '@/models/Customer';
@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
@@ -77,7 +78,8 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const { customerId, invoiceId, amount, method, reference, password } = validation.data;
 

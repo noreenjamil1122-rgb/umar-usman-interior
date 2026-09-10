@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Warehouse from '@/models/Warehouse';
 import Product from '@/models/Product';
 import { WarehouseSchema } from '@/lib/validations';
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const warehouseId = new mongoose.Types.ObjectId(params.id);
 
     const warehouse = await Warehouse.findOne({ _id: warehouseId, userId: userObjectId }).lean();
@@ -61,7 +62,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const warehouseId = new mongoose.Types.ObjectId(params.id);
 
     const updated = await Warehouse.findOneAndUpdate(
@@ -97,7 +99,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const warehouseId = new mongoose.Types.ObjectId(params.id);
 
     // Prevent deleting Warehouse if products are stored in it

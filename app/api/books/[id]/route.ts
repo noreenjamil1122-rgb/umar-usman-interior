@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Book from '@/models/Book';
 import Product from '@/models/Product';
 import { BookSchema } from '@/lib/validations';
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const bookId = new mongoose.Types.ObjectId(params.id);
 
     const book = await Book.findOne({ _id: bookId, userId: userObjectId }).lean();
@@ -61,7 +62,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const bookId = new mongoose.Types.ObjectId(params.id);
 
     const updated = await Book.findOneAndUpdate(
@@ -97,7 +99,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const bookId = new mongoose.Types.ObjectId(params.id);
 
     // Prevent deleting Book if products depend on it

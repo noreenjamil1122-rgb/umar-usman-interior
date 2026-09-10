@@ -96,3 +96,11 @@ export function clearAuthCookie(response: NextResponse): void {
     maxAge: 0,
   });
 }
+
+/**
+ * Resolves the effective business owner ID for multi-tenant data access.
+ * If user is a worker, returns adminId; otherwise returns userId.
+ */
+export function getEffectiveUserId(session: UserSession): string {
+  return session.role === 'worker' && session.adminId ? session.adminId : session.userId;
+}

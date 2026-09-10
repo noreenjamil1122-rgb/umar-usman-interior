@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Customer from '@/models/Customer';
 import Invoice from '@/models/Invoice';
 import { CustomerSchema } from '@/lib/validations';
@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('q') || '';
@@ -127,7 +128,8 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     // Generate atomic sequential code CUS-00001
     const code = await generateFormattedCode(userObjectId, 'customer');

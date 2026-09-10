@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import StockHistory from '@/models/StockHistory';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
 
     const { searchParams } = new URL(request.url);
     const wp = searchParams.get('wp');

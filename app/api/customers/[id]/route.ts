@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Customer from '@/models/Customer';
 import Invoice from '@/models/Invoice';
 import Payment from '@/models/Payment';
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const customerId = new mongoose.Types.ObjectId(params.id);
 
     const customer = await Customer.findOne({
@@ -87,7 +88,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const customerId = new mongoose.Types.ObjectId(params.id);
 
     const updatedCustomer = await Customer.findOneAndUpdate(
@@ -126,7 +128,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const customerId = new mongoose.Types.ObjectId(params.id);
 
     // Check if customer has associated invoices

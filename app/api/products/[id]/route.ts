@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
 import { ProductSchema } from '@/lib/validations';
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const productId = new mongoose.Types.ObjectId(params.id);
 
     const product = await Product.findOne({ _id: productId, userId: userObjectId })
@@ -74,7 +75,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const productId = new mongoose.Types.ObjectId(params.id);
 
     const data = validation.data;
@@ -134,7 +136,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const productId = new mongoose.Types.ObjectId(params.id);
 
     const deleted = await Product.findOneAndDelete({ _id: productId, userId: userObjectId });

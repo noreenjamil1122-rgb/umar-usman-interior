@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
 import { StockAdjustmentSchema } from '@/lib/validations';
@@ -42,7 +42,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const productId = new mongoose.Types.ObjectId(params.id);
 
     // Fetch current product to check stock boundaries

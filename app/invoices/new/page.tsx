@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   Save,
   Package,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -34,6 +35,8 @@ interface ProductOption {
   wp: string;
   design: string;
   brand: string;
+  color?: string;
+  code?: string;
   salePrice: number;
   stock: number;
 }
@@ -64,6 +67,7 @@ export default function NewInvoicePage() {
 
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
@@ -111,30 +115,32 @@ export default function NewInvoicePage() {
   // Fetch initial customers, products, and settings
   useEffect(() => {
     const initData = async () => {
+      setIsProductsLoading(true);
       try {
-        const [cRes, pRes, sRes] = await Promise.all([
-          fetch('/api/customers'),
-          fetch('/api/products'),
-          fetch('/api/settings'),
+        const [cRes, pRes, sRes] = await Promise.allSettled([
+          fetch('/api/customers').then((r) => r.json()),
+          fetch('/api/products').then((r) => r.json()),
+          fetch('/api/settings').then((r) => r.json()),
         ]);
 
-        const [cData, pData, sData] = await Promise.all([
-          cRes.json(),
-          pRes.json(),
-          sRes.json(),
-        ]);
-
-        if (cData.success) setCustomers(cData.data);
-        if (pData.success) setProducts(pData.data);
-        if (sData.success && sData.data) {
-          setDiscountRs(sData.data.defaultDiscount || 0);
-          setTaxOn(Boolean(sData.data.taxOn));
-          setTaxRate(sData.data.taxRate || 0);
-          if (sData.data.ownerName) setSellerName(sData.data.ownerName);
-          if (sData.data.contact) setSellerContact(sData.data.contact);
+        if (cRes.status === 'fulfilled' && cRes.value?.success && Array.isArray(cRes.value.data)) {
+          setCustomers(cRes.value.data);
+        }
+        if (pRes.status === 'fulfilled' && pRes.value?.success && Array.isArray(pRes.value.data)) {
+          setProducts(pRes.value.data);
+        }
+        if (sRes.status === 'fulfilled' && sRes.value?.success && sRes.value.data) {
+          const sData = sRes.value.data;
+          setDiscountRs(sData.defaultDiscount || 0);
+          setTaxOn(Boolean(sData.taxOn));
+          setTaxRate(sData.taxRate || 0);
+          if (sData.ownerName) setSellerName(sData.ownerName);
+          if (sData.contact) setSellerContact(sData.contact);
         }
       } catch (err) {
         console.error('Invoice init error:', err);
+      } finally {
+        setIsProductsLoading(false);
       }
     };
 
@@ -199,6 +205,8 @@ export default function NewInvoicePage() {
     ]);
   };
 
+  const searchTimeoutRef = React.useRef<{ [key: number]: NodeJS.Timeout }>({});
+
   const handleWallpaperSearchChange = (index: number, val: string) => {
     setWallpaperItems((prev) => {
       const next = [...prev];
@@ -209,6 +217,28 @@ export default function NewInvoicePage() {
       };
       return next;
     });
+
+    const trimmed = val.trim();
+    if (trimmed.length >= 2) {
+      if (searchTimeoutRef.current[index]) {
+        clearTimeout(searchTimeoutRef.current[index]);
+      }
+      searchTimeoutRef.current[index] = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/products?q=${encodeURIComponent(trimmed)}`);
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setProducts((prevProds) => {
+              const existingIds = new Set(prevProds.map((p) => p._id));
+              const newItems = json.data.filter((p: ProductOption) => !existingIds.has(p._id));
+              return newItems.length > 0 ? [...prevProds, ...newItems] : prevProds;
+            });
+          }
+        } catch {
+          // ignore dynamic query error
+        }
+      }, 300);
+    }
   };
 
   const handleSelectWallpaperProduct = (index: number, prod: ProductOption) => {
@@ -562,12 +592,32 @@ export default function NewInvoicePage() {
               ) : (
                 <div className="space-y-3">
                   {wallpaperItems.map((item, index) => {
-                    const filteredMatches = item.searchQuery.trim()
-                      ? products.filter(
-                          (p) =>
-                            p.wp.toLowerCase().includes(item.searchQuery.toLowerCase()) ||
-                            p.design.toLowerCase().includes(item.searchQuery.toLowerCase())
-                        ).slice(0, 8)
+                    const normalizeText = (str?: string) => (str || '').toLowerCase().replace(/[\s-_]/g, '');
+                    const queryRaw = item.searchQuery.trim().toLowerCase();
+                    const queryNorm = normalizeText(item.searchQuery);
+
+                    const filteredMatches = queryRaw
+                      ? products
+                          .filter((p) => {
+                            const wpRaw = (p.wp || '').toLowerCase();
+                            const wpNorm = normalizeText(p.wp);
+                            const designRaw = (p.design || '').toLowerCase();
+                            const designNorm = normalizeText(p.design);
+                            const brandRaw = (p.brand || '').toLowerCase();
+                            const colorRaw = (p.color || '').toLowerCase();
+                            const codeRaw = (p.code || '').toLowerCase();
+
+                            return (
+                              wpRaw.includes(queryRaw) ||
+                              wpNorm.includes(queryNorm) ||
+                              designRaw.includes(queryRaw) ||
+                              designNorm.includes(queryNorm) ||
+                              brandRaw.includes(queryRaw) ||
+                              colorRaw.includes(queryRaw) ||
+                              codeRaw.includes(queryRaw)
+                            );
+                          })
+                          .slice(0, 10)
                       : [];
 
                     return (
@@ -614,9 +664,15 @@ export default function NewInvoicePage() {
                             {/* Dropdown with yellow highlight */}
                             {item.showDropdown && item.searchQuery.trim() && (
                               <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-amber-50 border border-amber-300 rounded-xl shadow-warm-lg max-h-52 overflow-y-auto divide-y divide-amber-200 p-1">
-                                {filteredMatches.length === 0 ? (
-                                  <div className="p-2 text-center text-xs text-amber-900">
-                                    No matching wallpapers found for &ldquo;{item.searchQuery}&rdquo;
+                                {isProductsLoading ? (
+                                  <div className="p-3 text-center text-xs text-amber-900 flex items-center justify-center gap-2">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-teal" />
+                                    <span>Loading wallpapers catalog...</span>
+                                  </div>
+                                ) : filteredMatches.length === 0 ? (
+                                  <div className="p-3 text-center text-xs text-amber-900">
+                                    <p className="font-semibold">No matching wallpapers found for &ldquo;{item.searchQuery}&rdquo;</p>
+                                    <p className="text-[10px] text-amber-700 mt-0.5">Check WP# or try searching without hyphens/spaces.</p>
                                   </div>
                                 ) : (
                                   filteredMatches.map((p) => (

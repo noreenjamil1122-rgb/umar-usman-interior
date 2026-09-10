@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession } from '@/lib/auth';
+import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
 import { generateFormattedCode } from '@/lib/counters';
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     await connectToDatabase();
-    const userObjectId = new mongoose.Types.ObjectId(session.userId);
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const bookObjectId = bookId ? new mongoose.Types.ObjectId(bookId) : undefined;
     const defaultWarehouseId = warehouseId ? new mongoose.Types.ObjectId(warehouseId) : undefined;
 

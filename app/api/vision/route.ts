@@ -52,94 +52,123 @@ export async function POST(request: NextRequest) {
     }
 
     let rawText = '';
+    let lastGeminiError = '';
 
     if (geminiApiKey) {
-      // Google Gemini Vision API (gemini-3.6-flash)
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
-      const geminiResponse = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
+      const candidateGeminiModels = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+      ];
+
+      for (const model of candidateGeminiModels) {
+        try {
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+          const geminiResponse = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
                 {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: cleanBase64,
-                  },
-                },
-                {
-                  text: promptText,
+                  parts: [
+                    {
+                      inline_data: {
+                        mime_type: mimeType,
+                        data: cleanBase64,
+                      },
+                    },
+                    {
+                      text: promptText,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.1,
+              generationConfig: {
+                response_mime_type: 'application/json',
+                temperature: 0.1,
+              },
+            }),
+          });
+
+          if (geminiResponse.ok) {
+            const result = await geminiResponse.json();
+            rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (rawText) break; // Successfully parsed
+          } else {
+            const errorData = await geminiResponse.json().catch(() => null);
+            lastGeminiError =
+              errorData?.error?.message || `Gemini API status ${geminiResponse.status} on model ${model}`;
+            console.warn(`Gemini (${model}) failed:`, lastGeminiError);
+
+            // If 503 (high demand) or 429 (rate limit), pause briefly before trying next model
+            if (geminiResponse.status === 503 || geminiResponse.status === 429) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          }
+        } catch (callErr) {
+          lastGeminiError = callErr instanceof Error ? callErr.message : String(callErr);
+          console.warn(`Error calling Gemini model ${model}:`, lastGeminiError);
+        }
+      }
+    }
+
+    // Anthropic Claude fallback if Gemini models didn't succeed
+    if (!rawText && anthropicApiKey) {
+      try {
+        const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicApiKey as string,
+            'anthropic-version': '2023-06-01',
           },
-        }),
-      });
-
-      if (!geminiResponse.ok) {
-        const errorData = await geminiResponse.json().catch(() => null);
-        const errorMsg =
-          errorData?.error?.message || `Gemini API error: ${geminiResponse.status}`;
-        console.error('Gemini API Error:', errorData || errorMsg);
-        return NextResponse.json(
-          { success: false, error: errorMsg },
-          { status: geminiResponse.status }
-        );
-      }
-
-      const result = await geminiResponse.json();
-      rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else {
-      // Anthropic Claude fallback
-      const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': anthropicApiKey as string,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 1000,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  source: {
-                    type: 'base64',
-                    media_type: mimeType,
-                    data: cleanBase64,
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 1500,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: {
+                      type: 'base64',
+                      media_type: mimeType,
+                      data: cleanBase64,
+                    },
                   },
-                },
-                {
-                  type: 'text',
-                  text: promptText,
-                },
-              ],
-            },
-          ],
-        }),
-      });
+                  {
+                    type: 'text',
+                    text: promptText,
+                  },
+                ],
+              },
+            ],
+          }),
+        });
 
-      if (!anthropicResponse.ok) {
-        const errText = await anthropicResponse.text();
-        console.error('Anthropic API Error:', errText);
-        return NextResponse.json(
-          { success: false, error: `Anthropic API error: ${anthropicResponse.status}` },
-          { status: anthropicResponse.status }
-        );
+        if (anthropicResponse.ok) {
+          const result = await anthropicResponse.json();
+          rawText = result.content?.[0]?.text || '';
+        } else {
+          const errText = await anthropicResponse.text();
+          console.error('Anthropic API Error:', errText);
+        }
+      } catch (anthropicErr) {
+        console.error('Anthropic fetch error:', anthropicErr);
       }
+    }
 
-      const result = await anthropicResponse.json();
-      rawText = result.content?.[0]?.text || '';
+    if (!rawText) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            lastGeminiError ||
+            'AI Vision models are temporarily at peak capacity. Please wait a moment and try again.',
+        },
+        { status: 503 }
+      );
     }
 
     // Extract JSON from output
