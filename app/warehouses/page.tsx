@@ -120,19 +120,20 @@ export default function WarehousesPage() {
   return (
     <AppShell title="Warehouses (Home)">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-            Warehouses &amp; Inventory Storage
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
+            Warehouses &amp; Storage
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
             Manage physical godowns and monitor wallpaper rolls distribution
           </p>
         </div>
 
         <Button
           variant="teal"
-          size="sm"
+          size="md"
+          className="min-h-[42px] sm:min-h-[44px]"
           onClick={() => {
             setEditingWarehouse(null);
             setName('');
@@ -145,34 +146,34 @@ export default function WarehousesPage() {
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-xs text-ink-muted flex items-center justify-center">
-          <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+        <div className="py-20 text-center text-sm text-ink-muted flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 animate-spin text-teal mr-2" />
           Loading warehouse locations...
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
           {warehouses.map((w) => (
             <Card
               key={w._id}
               variant="elevated"
-              className="flex flex-col justify-between hover:border-teal/50 transition-all hover:shadow-warm-md"
+              className="flex flex-col justify-between hover:border-teal/50 transition-all hover:shadow-warm-md p-5 sm:p-6 rounded-2xl"
             >
               <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-paper border border-warm-border text-teal">
+                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                  <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-paper border border-warm-border text-teal">
                     {w.code}
                   </span>
-                  <WarehouseIcon className="w-4 h-4 text-ink-muted" />
+                  <WarehouseIcon className="w-5 h-5 text-ink-muted" />
                 </div>
 
                 <Link href={`/warehouses/${w._id}`} className="group">
-                  <h3 className="text-base font-bold text-ink group-hover:text-teal transition-colors flex items-center gap-1.5 mb-1">
+                  <h3 className="text-base sm:text-lg font-bold text-ink group-hover:text-teal transition-colors flex items-center gap-1.5 mb-1.5">
                     <span>{w.name}</span>
                     <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </h3>
                 </Link>
 
-                <div className="space-y-1.5 text-xs text-ink-muted mt-2">
+                <div className="space-y-2 text-xs sm:text-sm text-ink-muted mt-3">
                   <div className="flex items-center justify-between">
                     <span>Assigned Wallpapers:</span>
                     <span className="font-semibold text-ink">{w.productCount || 0}</span>
@@ -192,30 +193,30 @@ export default function WarehousesPage() {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-warm-borderLight mt-4 flex items-center justify-between">
+              <div className="pt-4 border-t border-warm-borderLight mt-5 flex items-center justify-between">
                 <Link href={`/warehouses/${w._id}`}>
-                  <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+                  <Button variant="outline" size="sm" className="min-h-[36px] text-xs sm:text-sm px-3 font-medium">
                     View Stock
                   </Button>
                 </Link>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0"
+                    className="w-9 h-9 p-0 rounded-lg"
                     onClick={() => handleEdit(w)}
                     title="Edit name"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <Edit2 className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 text-status-danger hover:bg-status-dangerLight"
+                    className="w-9 h-9 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
                     onClick={() => setWarehouseToDelete(w)}
                     title="Delete warehouse (Protected)"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -230,15 +231,15 @@ export default function WarehousesPage() {
               setName('');
               setIsOpen(true);
             }}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-warm-border rounded-2xl hover:border-teal hover:bg-paper/60 transition-all text-center group min-h-[170px]"
+            className="flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed border-warm-border rounded-2xl hover:border-teal hover:bg-paper/60 transition-all text-center group min-h-[190px]"
           >
-            <div className="w-10 h-10 rounded-full bg-teal-subtle text-teal flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <Plus className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-full bg-teal-subtle text-teal flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <Plus className="w-6 h-6" />
             </div>
-            <span className="text-sm font-bold text-ink group-hover:text-teal">
+            <span className="text-sm sm:text-base font-bold text-ink group-hover:text-teal">
               + Add Warehouse
             </span>
-            <span className="text-[11px] text-ink-muted mt-0.5">
+            <span className="text-xs text-ink-muted mt-1">
               Register a new godown or storage unit
             </span>
           </button>

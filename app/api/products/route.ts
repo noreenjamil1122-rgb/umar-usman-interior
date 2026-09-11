@@ -31,14 +31,33 @@ export async function GET(request: NextRequest) {
     if (search.trim()) {
       const cleanSearch = search.trim();
       const strippedSearch = cleanSearch.replace(/[\s-]/g, '');
-      query.$or = [
-        { wp: { $regex: cleanSearch, $options: 'i' } },
-        { wp: { $regex: strippedSearch, $options: 'i' } },
+      const hasDigit = /\d/.test(cleanSearch);
+      const isPurePrefix = /^(wp|w|p)$/i.test(strippedSearch);
+
+      const orConditions: Record<string, unknown>[] = [
         { design: { $regex: cleanSearch, $options: 'i' } },
         { brand: { $regex: cleanSearch, $options: 'i' } },
         { color: { $regex: cleanSearch, $options: 'i' } },
         { code: { $regex: cleanSearch, $options: 'i' } },
       ];
+
+      // Only search WP code if the search is not a bare prefix (W, P, WP)
+      if (!isPurePrefix) {
+        if (hasDigit) {
+          const numericPart = cleanSearch.replace(/\D/g, '');
+          orConditions.unshift(
+            { wp: { $regex: cleanSearch, $options: 'i' } },
+            { wp: { $regex: strippedSearch, $options: 'i' } },
+            { wp: { $regex: numericPart, $options: 'i' } }
+          );
+        } else {
+          orConditions.unshift(
+            { wp: { $regex: cleanSearch, $options: 'i' } }
+          );
+        }
+      }
+
+      query.$or = orConditions;
     }
 
     if (bookId) query.bookId = new mongoose.Types.ObjectId(bookId);

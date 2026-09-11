@@ -159,77 +159,78 @@ export default function WarehouseDetailPage({ params }: { params: { id: string }
   return (
     <AppShell title={warehouse ? `${warehouse.name} Details` : 'Warehouse'}>
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={() => router.push('/warehouses')}
             leftIcon={<ArrowLeft className="w-4 h-4" />}
           >
             All Warehouses
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
                 {warehouse?.name || 'Warehouse'}
               </h1>
-              <Badge variant="teal" size="sm" className="font-mono">
+              <Badge variant="teal" size="md" className="font-mono">
                 {warehouse?.code}
               </Badge>
             </div>
-            <p className="text-xs text-ink-muted mt-0.5">
+            <p className="text-xs sm:text-sm text-ink-muted mt-1">
               Assigned inventory and wallpaper stock distribution
             </p>
           </div>
         </div>
 
         <Link href="/books">
-          <Button variant="brass" size="sm" leftIcon={<BookOpen className="w-4 h-4" />}>
+          <Button variant="brass" size="md" className="min-h-[42px]" leftIcon={<BookOpen className="w-4 h-4" />}>
             Browse Books
           </Button>
         </Link>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4 border-l-4 border-l-teal">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Assigned Wallpapers</div>
-          <div className="text-2xl font-bold text-ink mt-1">{products.length}</div>
-          <div className="text-[11px] text-ink-muted mt-0.5">Different codes</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 mb-6 sm:mb-8">
+        <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-teal">
+          <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Assigned Wallpapers</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">{products.length}</div>
+          <div className="text-xs text-ink-muted mt-1">Different codes</div>
         </Card>
 
-        <Card className="p-4 border-l-4 border-l-brass">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Total Physical Stock</div>
-          <div className="text-2xl font-bold text-ink mt-1">
-            {totalRolls} <span className="text-xs text-ink-muted font-normal">Rolls</span>
+        <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-brass">
+          <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Total Physical Stock</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">
+            {totalRolls} <span className="text-xs sm:text-sm text-ink-muted font-normal">Rolls</span>
           </div>
-          <div className="text-[11px] text-ink-muted mt-0.5">In this warehouse</div>
+          <div className="text-xs text-ink-muted mt-1">In this warehouse</div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Low Stock Warnings</div>
-          <div className="text-2xl font-bold text-amber-600 mt-1">{lowCount}</div>
-          <div className="text-[11px] text-ink-muted mt-0.5">Reorder soon</div>
+        <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-amber-500">
+          <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Low Stock Warnings</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1.5">{lowCount}</div>
+          <div className="text-xs text-ink-muted mt-1">Reorder soon</div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Out of Stock</div>
-          <div className="text-2xl font-bold text-status-danger mt-1">{outCount}</div>
-          <div className="text-[11px] text-ink-muted mt-0.5">0 rolls available</div>
+        <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-status-danger">
+          <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Out of Stock</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-status-danger mt-1.5">{outCount}</div>
+          <div className="text-xs text-ink-muted mt-1">0 rolls available</div>
         </Card>
       </div>
 
       {/* Search Filter */}
-      <Card className="p-3 mb-6">
+      <Card className="p-4 sm:p-5 rounded-2xl shadow-warm mb-6 sm:mb-8">
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
           <input
             type="text"
             placeholder="Search wallpapers in this warehouse by code, book, color..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+            className="w-full pl-11 pr-4 py-2.5 sm:py-3 text-sm bg-paper border border-warm-border rounded-xl text-ink focus:outline-none focus:border-teal min-h-[44px]"
           />
         </div>
       </Card>
@@ -252,16 +253,16 @@ export default function WarehouseDetailPage({ params }: { params: { id: string }
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                   <tr>
-                    <th className="py-3 px-4">WP No.</th>
-                    <th className="py-3 px-4">Book</th>
-                    <th className="py-3 px-4">Color</th>
-                    <th className="py-3 px-4">Sale Price</th>
-                    <th className="py-3 px-4">Stock Quantity</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Quick Stock +/-</th>
+                    <th className="py-3.5 px-4">WP No.</th>
+                    <th className="py-3.5 px-4">Book</th>
+                    <th className="py-3.5 px-4">Color</th>
+                    <th className="py-3.5 px-4">Sale Price</th>
+                    <th className="py-3.5 px-4">Stock Quantity</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Quick Stock +/-</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
@@ -277,61 +278,61 @@ export default function WarehouseDetailPage({ params }: { params: { id: string }
                           isOut ? 'bg-rose-50/40' : isLow ? 'bg-amber-50/40' : ''
                         }`}
                       >
-                        <td className="py-3 px-4 font-mono font-bold text-teal">
-                          <div>WP {p.wp}</div>
+                        <td className="py-4 px-4 font-mono font-bold text-teal">
+                          <div className="text-sm sm:text-base">WP {p.wp}</div>
                           {p.design && p.design !== p.wp && (
-                            <div className="text-[10px] text-ink-muted font-normal">{p.design}</div>
+                            <div className="text-xs text-ink-muted font-normal mt-0.5">{p.design}</div>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-ink font-medium">
+                        <td className="py-4 px-4 text-ink font-medium">
                           {p.bookId ? (
                             <Link
                               href={`/books/${p.bookId._id}`}
-                              className="hover:text-teal inline-flex items-center gap-1.5"
+                              className="hover:text-teal inline-flex items-center gap-2"
                             >
                               <span
-                                className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                                className="w-3 h-3 rounded-full inline-block shrink-0"
                                 style={{ backgroundColor: p.bookId.color || '#1E6F6C' }}
                               />
-                              <span>{p.bookId.name}</span>
+                              <span className="font-semibold">{p.bookId.name}</span>
                             </Link>
                           ) : (
                             <span className="text-ink-muted">-</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-ink-muted">{p.color || '-'}</td>
-                        <td className="py-3 px-4 font-bold text-ink">{formatCurrency(p.salePrice)}</td>
-                        <td className="py-3 px-4 font-mono text-sm font-bold text-ink">
-                          {p.stock} <span className="text-[10px] font-normal text-ink-muted">{p.unit}</span>
+                        <td className="py-4 px-4 text-ink-muted">{p.color || '-'}</td>
+                        <td className="py-4 px-4 font-bold text-ink">{formatCurrency(p.salePrice)}</td>
+                        <td className="py-4 px-4 font-mono text-sm sm:text-base font-bold text-ink">
+                          {p.stock} <span className="text-xs font-normal text-ink-muted">{p.unit}</span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-4 px-4">
                           {isOut ? (
-                            <Badge variant="danger" size="sm">Out of Stock</Badge>
+                            <Badge variant="danger" size="md">Out of Stock</Badge>
                           ) : isLow ? (
-                            <Badge variant="warning" size="sm">Low Stock ({p.stock})</Badge>
+                            <Badge variant="warning" size="md">Low Stock ({p.stock})</Badge>
                           ) : (
-                            <Badge variant="success" size="sm">In Stock</Badge>
+                            <Badge variant="success" size="md">In Stock</Badge>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right space-x-1">
+                        <td className="py-4 px-4 text-right space-x-1.5">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-emerald-700 hover:bg-emerald-50"
+                            className="w-8 h-8 p-0 rounded-lg text-emerald-700 hover:bg-emerald-50"
                             onClick={() => handleOpenAdjust(p, 'add')}
                             title="Add stock rolls"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-rose-700 hover:bg-rose-50"
+                            className="w-8 h-8 p-0 rounded-lg text-rose-700 hover:bg-rose-50"
                             onClick={() => handleOpenAdjust(p, 'subtract')}
                             title="Subtract stock rolls"
                             disabled={p.stock <= 0}
                           >
-                            <Minus className="w-3.5 h-3.5" />
+                            <Minus className="w-4 h-4" />
                           </Button>
                         </td>
                       </tr>

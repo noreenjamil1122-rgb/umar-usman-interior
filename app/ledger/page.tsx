@@ -290,12 +290,12 @@ export default function LedgerPage() {
   return (
     <AppShell title="Party Ledger">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             Customer &amp; Supplier Ledger
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
             Track running debit, credit, invoice charges, and payment histories
           </p>
         </div>
@@ -303,7 +303,8 @@ export default function LedgerPage() {
         {selectedCustomer && (
           <Button
             variant="brass"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={printStatementInNewTab}
             leftIcon={<Printer className="w-4 h-4" />}
           >
@@ -313,16 +314,16 @@ export default function LedgerPage() {
       </div>
 
       {/* Account Selector Card */}
-      <Card className="mb-6 p-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <Card className="mb-6 sm:mb-8 p-5 sm:p-6 rounded-2xl shadow-warm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
           <div className="flex-1 max-w-xl">
-            <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-2">
               Select Account
             </label>
             <select
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-paper border border-warm-border rounded-lg text-ink font-semibold focus:outline-none focus:border-teal"
+              className="w-full px-4 py-2.5 sm:py-3 text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal min-h-[44px]"
               disabled={loadingCustomers}
             >
               {customers.map((c) => (
@@ -336,7 +337,7 @@ export default function LedgerPage() {
           {selectedCustomer && (
             <div className="flex items-center gap-3 self-end md:self-center">
               <Link href={`/customers/${selectedCustomer._id}`}>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="md" className="min-h-[42px]">
                   View Full Profile
                 </Button>
               </Link>
@@ -347,29 +348,29 @@ export default function LedgerPage() {
 
       {/* Financial Summary Cards */}
       {selectedCustomer && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <Card className="p-4 bg-paper border border-warm-border">
-            <div className="text-[11px] font-semibold uppercase text-ink-muted flex items-center gap-1.5">
-              <ArrowUpRight className="w-3.5 h-3.5 text-teal" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="p-5 sm:p-6 rounded-2xl shadow-warm bg-paper border border-warm-border">
+            <div className="text-xs font-bold uppercase text-ink-muted flex items-center gap-1.5 tracking-wider">
+              <ArrowUpRight className="w-4 h-4 text-teal" />
               <span>Total Billed (Debit)</span>
             </div>
-            <div className="text-xl font-bold text-ink mt-1">
+            <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-2">
               {formatCurrency(stats.totalInvoiced)}
             </div>
           </Card>
 
-          <Card className="p-4 bg-paper border border-warm-border">
-            <div className="text-[11px] font-semibold uppercase text-ink-muted flex items-center gap-1.5">
-              <ArrowDownLeft className="w-3.5 h-3.5 text-status-success" />
+          <Card className="p-5 sm:p-6 rounded-2xl shadow-warm bg-paper border border-warm-border">
+            <div className="text-xs font-bold uppercase text-ink-muted flex items-center gap-1.5 tracking-wider">
+              <ArrowDownLeft className="w-4 h-4 text-status-success" />
               <span>Total Paid (Credit)</span>
             </div>
-            <div className="text-xl font-bold text-status-success mt-1">
+            <div className="text-2xl sm:text-3xl font-extrabold text-status-success mt-2">
               {formatCurrency(stats.totalPaid)}
             </div>
           </Card>
 
           <Card
-            className={`p-4 border ${
+            className={`p-5 sm:p-6 rounded-2xl shadow-warm border ${
               stats.currentBalance > 0
                 ? 'bg-red-50/50 border-red-200'
                 : stats.currentBalance < 0
@@ -377,7 +378,7 @@ export default function LedgerPage() {
                 : 'bg-paper border-warm-border'
             }`}
           >
-            <div className="text-[11px] font-semibold uppercase text-ink-muted">
+            <div className="text-xs font-bold uppercase text-ink-muted tracking-wider">
               {stats.currentBalance > 0
                 ? 'Outstanding Balance (Udhar)'
                 : stats.currentBalance < 0
@@ -385,7 +386,7 @@ export default function LedgerPage() {
                 : 'Account Status'}
             </div>
             <div
-              className={`text-xl font-black mt-1 ${
+              className={`text-2xl sm:text-3xl font-black mt-2 ${
                 stats.currentBalance > 0
                   ? 'text-status-danger'
                   : stats.currentBalance < 0
@@ -428,37 +429,37 @@ export default function LedgerPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                   <tr>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Reference / Invoice #</th>
-                    <th className="py-3 px-4 text-right">Debit (Billed)</th>
-                    <th className="py-3 px-4 text-right">Credit (Paid)</th>
-                    <th className="py-3 px-4 text-right">Running Balance</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Type</th>
+                    <th className="py-3.5 px-4">Reference / Invoice #</th>
+                    <th className="py-3.5 px-4 text-right">Debit (Billed)</th>
+                    <th className="py-3.5 px-4 text-right">Credit (Paid)</th>
+                    <th className="py-3.5 px-4 text-right">Running Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
                   {ledgerEntries.map((entry) => (
                     <tr key={entry._id} className="hover:bg-paper transition-colors">
-                      <td className="py-3 px-4 text-ink-muted whitespace-nowrap">
+                      <td className="py-4 px-4 text-ink-muted whitespace-nowrap">
                         {formatDate(entry.date)}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-4 px-4">
                         {entry.type === 'invoice' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-teal-subtle text-teal">
-                            <FileText className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-subtle text-teal">
+                            <FileText className="w-3.5 h-3.5" />
                             <span>Invoice</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-status-success border border-green-200">
-                            <CreditCard className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-green-50 text-status-success border border-green-200">
+                            <CreditCard className="w-3.5 h-3.5" />
                             <span>Payment</span>
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-mono font-semibold text-ink">
+                      <td className="py-4 px-4 font-mono font-semibold text-ink">
                         {entry.type === 'invoice' ? (
                           <Link href={`/invoices/${entry._id}`} className="text-teal hover:underline">
                             {entry.numberOrRef}
@@ -467,13 +468,13 @@ export default function LedgerPage() {
                           entry.numberOrRef
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium text-ink">
+                      <td className="py-4 px-4 text-right font-medium text-ink">
                         {entry.debit > 0 ? formatCurrency(entry.debit) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-status-success">
+                      <td className="py-4 px-4 text-right font-bold text-status-success">
                         {entry.credit > 0 ? formatCurrency(entry.credit) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold">
+                      <td className="py-4 px-4 text-right font-bold">
                         {entry.balanceAfter > 0 ? (
                           <span className="text-status-danger">{formatCurrency(entry.balanceAfter)}</span>
                         ) : entry.balanceAfter < 0 ? (

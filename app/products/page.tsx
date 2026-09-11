@@ -256,22 +256,22 @@ function ProductsContent() {
   return (
     <AppShell title="Wallpaper Inventory">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             Wallpaper Product Catalog
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-0.5">
             Catalog books, rolls inventory, pricing, and stock audit
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           {/* View mode toggle */}
-          <div className="flex items-center bg-paper border border-warm-border rounded-lg p-0.5">
+          <div className="flex items-center bg-paper border border-warm-border rounded-xl p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`p-2 rounded-lg text-xs font-semibold transition-colors ${
                 viewMode === 'grid' ? 'bg-teal text-white shadow-warm' : 'text-ink-muted hover:text-ink'
               }`}
               title="Card Grid View"
@@ -280,7 +280,7 @@ function ProductsContent() {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`p-2 rounded-lg text-xs font-semibold transition-colors ${
                 viewMode === 'table' ? 'bg-teal text-white shadow-warm' : 'text-ink-muted hover:text-ink'
               }`}
               title="Table List View"
@@ -291,7 +291,7 @@ function ProductsContent() {
 
           <Button
             variant="teal"
-            size="sm"
+            size="lg"
             onClick={() => {
               setEditingProduct(null);
               setFormData({
@@ -312,7 +312,8 @@ function ProductsContent() {
               });
               setIsAddOpen(true);
             }}
-            leftIcon={<Plus className="w-4 h-4" />}
+            leftIcon={<Plus className="w-5 h-5" />}
+            className="shadow-warm"
           >
             Add Wallpaper
           </Button>
@@ -320,17 +321,17 @@ function ProductsContent() {
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="mb-6 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <Card className="mb-6 sm:mb-8 p-4 sm:p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           {/* Search */}
           <div className="relative lg:col-span-2">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-ink-muted" />
             <input
               type="text"
               placeholder="Search WP#, design, brand, color..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+              className="w-full min-h-[44px] pl-10 pr-3.5 py-2 text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
             />
           </div>
 
@@ -338,7 +339,7 @@ function ProductsContent() {
           <select
             value={selectedBook}
             onChange={(e) => setSelectedBook(e.target.value)}
-            className="px-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+            className="min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-semibold bg-paper border border-warm-border rounded-xl text-ink focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
           >
             <option value="">All Catalog Books</option>
             {books.map((b) => (
@@ -352,7 +353,7 @@ function ProductsContent() {
           <select
             value={selectedWarehouse}
             onChange={(e) => setSelectedWarehouse(e.target.value)}
-            className="px-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+            className="min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-semibold bg-paper border border-warm-border rounded-xl text-ink focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
           >
             <option value="">All Warehouses</option>
             {warehouses.map((w) => (
@@ -366,7 +367,7 @@ function ProductsContent() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+            className="min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-semibold bg-paper border border-warm-border rounded-xl text-ink focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
           >
             <option value="">All Stock Levels</option>
             <option value="in_stock">In Stock Only</option>
@@ -378,21 +379,21 @@ function ProductsContent() {
 
       {/* Product Display Area */}
       {loading ? (
-        <div className="py-16 text-center text-xs text-ink-muted flex flex-col items-center justify-center">
+        <div className="py-20 text-center text-sm text-ink-muted flex flex-col items-center justify-center">
           <RefreshCw className="w-6 h-6 animate-spin text-teal mb-2" />
           Loading wallpaper inventory...
         </div>
       ) : products.length === 0 ? (
-        <Card className="py-16 text-center text-ink-muted space-y-3">
+        <Card className="py-20 text-center text-ink-muted space-y-3">
           <Package className="w-12 h-12 mx-auto text-ink-muted/40" />
-          <div className="text-base font-semibold text-ink">No products found</div>
-          <p className="text-xs max-w-sm mx-auto">
+          <div className="text-base font-bold text-ink">No products found</div>
+          <p className="text-xs sm:text-sm max-w-sm mx-auto">
             Try adjusting your search filters or click &ldquo;Add Wallpaper&rdquo; to add rolls to your catalog.
           </p>
         </Card>
       ) : viewMode === 'grid' ? (
         /* Card Grid View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
           {products.map((p) => {
             const isOutOfStock = p.stock <= 0;
             const isLowStock = !isOutOfStock && p.stock <= p.minStock;
@@ -401,12 +402,12 @@ function ProductsContent() {
               <Card
                 key={p._id}
                 variant="elevated"
-                className="flex flex-col justify-between hover:border-teal/50 transition-all group"
+                className="p-5 sm:p-6 flex flex-col justify-between hover:border-teal/50 transition-all group shadow-warm"
               >
                 <div>
                   {/* Top Bar: WP Badge & Stock Status */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-teal text-white shadow-warm">
+                  <div className="flex items-center justify-between gap-2 mb-3.5">
+                    <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-teal text-white shadow-warm">
                       {p.wp}
                     </span>
                     {isOutOfStock ? (
@@ -419,42 +420,42 @@ function ProductsContent() {
                   </div>
 
                   {/* Design & Brand */}
-                  <h3 className="text-base font-bold text-ink leading-snug group-hover:text-teal transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-ink leading-snug group-hover:text-teal transition-colors">
                     {p.design}
                   </h3>
-                  <p className="text-xs text-ink-muted mt-0.5">
-                    Brand: <span className="text-ink font-medium">{p.brand || 'Umar Usman'}</span>
+                  <p className="text-xs text-ink-muted mt-1">
+                    Brand: <span className="text-ink font-semibold">{p.brand || 'Umar Usman'}</span>
                   </p>
 
                   {/* Badges / Meta */}
-                  <div className="flex flex-wrap gap-1.5 my-3">
+                  <div className="flex flex-wrap gap-1.5 my-3.5">
                     {p.bookId && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-brass-subtle text-brass-dark border border-brass/20">
-                        <BookOpen className="w-3 h-3" />
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-brass-subtle text-brass-dark border border-brass/20">
+                        <BookOpen className="w-3.5 h-3.5" />
                         {p.bookId.name}
                       </span>
                     )}
                     {p.warehouseId && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-paper border border-warm-border text-ink-muted">
-                        <WarehouseIcon className="w-3 h-3" />
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-paper border border-warm-border text-ink-muted">
+                        <WarehouseIcon className="w-3.5 h-3.5" />
                         {p.warehouseId.name}
                       </span>
                     )}
                   </div>
 
                   {/* Pricing Details */}
-                  <div className="pt-2 border-t border-warm-borderLight flex items-baseline justify-between text-xs">
+                  <div className="pt-3 border-t border-warm-borderLight flex items-baseline justify-between text-xs sm:text-sm">
                     <span className="text-ink-muted">Sale Price:</span>
-                    <span className="text-sm font-bold text-ink">{formatCurrency(p.salePrice)}</span>
+                    <span className="text-base font-extrabold text-ink">{formatCurrency(p.salePrice)}</span>
                   </div>
                 </div>
 
                 {/* Footer Controls: Quick Stock Adjustment & Actions */}
-                <div className="pt-3 border-t border-warm-borderLight mt-4 flex items-center justify-between gap-2">
+                <div className="pt-4 border-t border-warm-borderLight mt-4 flex items-center justify-between gap-2.5">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs flex-1 gap-1"
+                    className="min-h-[36px] text-xs font-semibold flex-1 gap-1"
                     onClick={() => {
                       setAdjustingProduct(p);
                       setAdjustQty(1);
@@ -465,20 +466,20 @@ function ProductsContent() {
                     <span>Adjust Stock</span>
                   </Button>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleEdit(p)}
-                      className="p-1.5 rounded-md text-ink-muted hover:text-ink hover:bg-paper-dark transition-colors"
+                      className="p-2 rounded-lg text-ink-muted hover:text-ink hover:bg-paper-dark transition-colors"
                       title="Edit Product"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(p)}
-                      className="p-1.5 rounded-md text-status-danger hover:bg-status-dangerLight transition-colors"
+                      className="p-2 rounded-lg text-status-danger hover:bg-status-dangerLight transition-colors"
                       title="Delete Product"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -491,29 +492,29 @@ function ProductsContent() {
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-bold text-xs">
                   <tr>
-                    <th className="py-3 px-4">WP#</th>
-                    <th className="py-3 px-4">Design</th>
-                    <th className="py-3 px-4">Book</th>
-                    <th className="py-3 px-4">Warehouse</th>
-                    <th className="py-3 px-4">Stock</th>
-                    <th className="py-3 px-4">Sale Rate</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4">WP#</th>
+                    <th className="py-3.5 px-4">Design</th>
+                    <th className="py-3.5 px-4">Book</th>
+                    <th className="py-3.5 px-4">Warehouse</th>
+                    <th className="py-3.5 px-4">Stock</th>
+                    <th className="py-3.5 px-4">Sale Rate</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
                   {products.map((p) => (
                     <tr key={p._id} className="hover:bg-paper transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-teal">{p.wp}</td>
-                      <td className="py-3 px-4 font-bold text-ink">
+                      <td className="py-4 px-4 font-mono font-bold text-teal">{p.wp}</td>
+                      <td className="py-4 px-4 font-bold text-ink">
                         <div>{p.design}</div>
-                        <div className="text-[10px] text-ink-muted">{p.brand}</div>
+                        <div className="text-xs text-ink-muted font-normal mt-0.5">{p.brand}</div>
                       </td>
-                      <td className="py-3 px-4 text-ink-muted">{p.bookId?.name || '-'}</td>
-                      <td className="py-3 px-4 text-ink-muted">{p.warehouseId?.name || '-'}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-4 px-4 text-ink font-medium">{p.bookId?.name || '-'}</td>
+                      <td className="py-4 px-4 text-ink font-medium">{p.warehouseId?.name || '-'}</td>
+                      <td className="py-4 px-4">
                         {p.stock <= 0 ? (
                           <Badge variant="danger" size="sm">0 Rolls</Badge>
                         ) : p.stock <= p.minStock ? (
@@ -522,12 +523,12 @@ function ProductsContent() {
                           <Badge variant="success" size="sm">{p.stock} Rolls</Badge>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-bold text-ink">{formatCurrency(p.salePrice)}</td>
-                      <td className="py-3 px-4 text-right space-x-1">
+                      <td className="py-4 px-4 font-extrabold text-ink">{formatCurrency(p.salePrice)}</td>
+                      <td className="py-4 px-4 text-right space-x-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 text-xs text-teal"
+                          className="min-h-[34px] px-2.5 text-xs text-teal font-semibold"
                           onClick={() => {
                             setAdjustingProduct(p);
                             setAdjustQty(1);
@@ -539,18 +540,18 @@ function ProductsContent() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 text-xs text-ink-muted"
+                          className="w-8 h-8 p-0 rounded-lg text-ink-muted hover:text-ink"
                           onClick={() => handleEdit(p)}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 text-xs text-status-danger hover:bg-status-dangerLight"
+                          className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
                           onClick={() => handleDelete(p)}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </td>
                     </tr>

@@ -18,14 +18,14 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-xs font-semibold uppercase tracking-wider text-ink-light"
+            className="block text-xs sm:text-sm font-semibold tracking-wide text-ink mb-1"
           >
             {label}
           </label>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="absolute left-3 pointer-events-none text-ink-muted">
+            <div className="absolute left-3.5 pointer-events-none text-ink-muted flex items-center justify-center">
               {leftIcon}
             </div>
           )}
@@ -34,23 +34,23 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             ref={ref}
             className={cn(
-              'w-full rounded-lg border bg-paper-light px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 transition-colors',
-              'border-warm-border focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none',
-              leftIcon && 'pl-9',
-              rightIcon && 'pr-9',
-              error && 'border-status-danger focus:border-status-danger focus:ring-status-danger',
+              'w-full min-h-[42px] sm:min-h-[44px] rounded-xl border bg-paper-light px-3.5 py-2.5 text-sm sm:text-base text-ink placeholder:text-ink-muted/60 transition-all shadow-xs',
+              'border-warm-border focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none',
+              leftIcon && 'pl-10',
+              rightIcon && 'pr-10',
+              error && 'border-status-danger focus:border-status-danger focus:ring-status-danger/20',
               className
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 pointer-events-none text-ink-muted">
+            <div className="absolute right-3.5 pointer-events-none text-ink-muted flex items-center justify-center">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-status-danger font-medium">{error}</p>}
-        {!error && helperText && <p className="text-xs text-ink-muted">{helperText}</p>}
+        {error && <p className="text-xs sm:text-sm text-status-danger font-medium mt-1">{error}</p>}
+        {!error && helperText && <p className="text-xs sm:text-sm text-ink-muted mt-1">{helperText}</p>}
       </div>
     );
   }

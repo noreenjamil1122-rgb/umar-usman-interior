@@ -5,6 +5,13 @@ import { getAuthSession, getEffectiveUserId } from '@/lib/auth';
 import Customer from '@/models/Customer';
 import Product from '@/models/Product';
 import Invoice from '@/models/Invoice';
+import {
+  buildPhoneRegex,
+  buildNameRegex,
+  buildInvoiceNumberRegex,
+  buildWpNumberRegex,
+  escapeRegex,
+} from '@/lib/searchUtils';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,13 +35,29 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     const businessOwnerId = getEffectiveUserId(session);
     const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
-    const regex = { $regex: q, $options: 'i' };
+    const phoneRegex = buildPhoneRegex(q);
+    const nameRegex = buildNameRegex(q);
+    const invNumRegex = buildInvoiceNumberRegex(q);
+    const wpRegex = buildWpNumberRegex(q);
+    const textRegex = { $regex: escapeRegex(q), $options: 'i' };
+
+    const customerConditions: Record<string, unknown>[] = [
+      { name: nameRegex },
+      { code: textRegex },
+      { city: textRegex },
+    ];
+    if (phoneRegex) {
+      customerConditions.push({ mobile: phoneRegex });
+      customerConditions.push({ whatsapp: phoneRegex });
+    } else {
+      customerConditions.push({ mobile: textRegex });
+    }
 
     // Parallel searches with limits
-    const [customers, products, invoices] = await Promise.all([
+    const [customers, products] = await Promise.all([
       Customer.find({
         userId: userObjectId,
-        $or: [{ name: regex }, { mobile: regex }, { code: regex }],
+        $or: customerConditions,
       })
         .limit(5)
         .select('name code mobile city')
@@ -42,21 +65,31 @@ export async function GET(request: NextRequest) {
 
       Product.find({
         userId: userObjectId,
-        $or: [{ wp: regex }, { design: regex }, { brand: regex }],
+        $or: [{ wp: wpRegex }, { design: textRegex }, { brand: textRegex }],
       })
         .limit(5)
         .select('wp design brand salePrice stock')
         .lean(),
-
-      Invoice.find({
-        userId: userObjectId,
-        number: regex,
-      })
-        .limit(5)
-        .populate('customerId', 'name')
-        .select('number total remaining date customerId')
-        .lean(),
     ]);
+
+    const matchedCustomerIds = customers.map((c) => c._id);
+    const invoiceOrConditions: Record<string, unknown>[] = [
+      { number: invNumRegex },
+      { 'items.wp': wpRegex },
+      { 'items.design': textRegex },
+    ];
+    if (matchedCustomerIds.length > 0) {
+      invoiceOrConditions.push({ customerId: { $in: matchedCustomerIds } });
+    }
+
+    const invoices = await Invoice.find({
+      userId: userObjectId,
+      $or: invoiceOrConditions,
+    })
+      .limit(5)
+      .populate('customerId', 'name mobile')
+      .select('number total remaining date customerId')
+      .lean();
 
     return NextResponse.json({
       success: true,

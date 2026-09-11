@@ -199,20 +199,20 @@ function CustomersContent() {
   return (
     <AppShell title="Party Directory">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             Customers &amp; Suppliers Directory
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-0.5">
             Manage clients, vendor accounts, contact details, and Udhar balances
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <Button
             variant="teal"
-            size="sm"
+            size="lg"
             onClick={() => {
               setEditingCustomer(null);
               setFormData({
@@ -227,7 +227,8 @@ function CustomersContent() {
               });
               setIsAddOpen(true);
             }}
-            leftIcon={<Plus className="w-4 h-4" />}
+            leftIcon={<Plus className="w-5 h-5" />}
+            className="shadow-warm"
           >
             Add Party
           </Button>
@@ -235,14 +236,14 @@ function CustomersContent() {
       </div>
 
       {/* Filter and Search Bar */}
-      <Card className="mb-6 p-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <Card className="mb-6 sm:mb-8 p-4 sm:p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
             <button
               onClick={() => setPartyTypeTab('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
                 partyTypeTab === 'all'
-                  ? 'bg-ink text-white'
+                  ? 'bg-ink text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
@@ -250,7 +251,7 @@ function CustomersContent() {
             </button>
             <button
               onClick={() => setPartyTypeTab('customer')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
                 partyTypeTab === 'customer'
                   ? 'bg-teal text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
@@ -260,7 +261,7 @@ function CustomersContent() {
             </button>
             <button
               onClick={() => setPartyTypeTab('supplier')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
                 partyTypeTab === 'supplier'
                   ? 'bg-brass-dark text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
@@ -271,26 +272,26 @@ function CustomersContent() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-ink-muted" />
               <input
                 type="text"
                 placeholder="Search name, phone, code..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+                className="w-full min-h-[44px] pl-10 pr-3.5 py-2 text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
               />
             </div>
 
             <button
               onClick={() => setFilterDebtOnly(!filterDebtOnly)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+              className={`min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap ${
                 filterDebtOnly
                   ? 'bg-status-danger text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertTriangle className="w-4 h-4" />
               <span>Udhar Only</span>
             </button>
           </div>
@@ -301,15 +302,15 @@ function CustomersContent() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-12 flex justify-center items-center text-xs text-ink-muted">
+            <div className="py-20 flex justify-center items-center text-sm text-ink-muted">
               <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
               Loading directory...
             </div>
           ) : displayedCustomers.length === 0 ? (
-            <div className="py-12 text-center text-ink-muted space-y-2">
-              <Users className="w-10 h-10 mx-auto text-ink-muted/40" />
-              <div className="text-sm font-semibold text-ink">No parties found</div>
-              <p className="text-xs">
+            <div className="py-20 text-center text-ink-muted space-y-3">
+              <Users className="w-12 h-12 mx-auto text-ink-muted/40" />
+              <div className="text-base font-bold text-ink">No parties found</div>
+              <p className="text-xs sm:text-sm max-w-sm mx-auto">
                 {filterDebtOnly
                   ? 'No accounts with outstanding balances.'
                   : 'Add your first customer or supplier to begin recording transactions.'}
@@ -319,30 +320,30 @@ function CustomersContent() {
             <>
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-bold text-xs">
                     <tr>
-                      <th className="py-3 px-4">Code</th>
-                      <th className="py-3 px-4">Type</th>
-                      <th className="py-3 px-4">Name</th>
-                      <th className="py-3 px-4">Contact</th>
-                      <th className="py-3 px-4">City / Address</th>
-                      <th className="py-3 px-4 text-right">Total Purchases</th>
-                      <th className="py-3 px-4 text-right">Outstanding (Udhar)</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3.5 px-4">Code</th>
+                      <th className="py-3.5 px-4">Type</th>
+                      <th className="py-3.5 px-4">Name</th>
+                      <th className="py-3.5 px-4">Contact</th>
+                      <th className="py-3.5 px-4">City / Address</th>
+                      <th className="py-3.5 px-4 text-right">Total Purchases</th>
+                      <th className="py-3.5 px-4 text-right">Outstanding (Udhar)</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {displayedCustomers.map((c) => (
                       <tr key={c._id} className="hover:bg-paper transition-colors">
-                        <td className="py-3 px-4 font-mono font-semibold text-teal">
+                        <td className="py-4 px-4 font-mono font-bold text-teal">
                           <Link href={`/customers/${c._id}`} className="hover:underline">
                             {c.code}
                           </Link>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-4 px-4">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase ${
                               c.type === 'supplier'
                                 ? 'bg-brass-light text-brass-dark'
                                 : 'bg-teal-subtle text-teal-dark'
@@ -351,7 +352,7 @@ function CustomersContent() {
                             {c.type === 'supplier' ? 'Supplier' : 'Customer'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-bold text-ink">
+                        <td className="py-4 px-4 font-bold text-ink">
                           <Link
                             href={`/customers/${c._id}`}
                             className="hover:text-teal hover:underline text-left block"
@@ -359,43 +360,43 @@ function CustomersContent() {
                             {c.name}
                           </Link>
                         </td>
-                        <td className="py-3 px-4 space-y-0.5">
-                          <div className="flex items-center gap-1.5 text-ink">
-                            <Phone className="w-3 h-3 text-ink-muted" />
+                        <td className="py-4 px-4 space-y-1">
+                          <div className="flex items-center gap-1.5 text-ink font-semibold">
+                            <Phone className="w-3.5 h-3.5 text-ink-muted" />
                             <span>{c.mobile}</span>
                           </div>
                           {c.whatsapp && (
-                            <div className="flex items-center gap-1.5 text-emerald-700">
-                              <MessageCircle className="w-3 h-3" />
+                            <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
+                              <MessageCircle className="w-3.5 h-3.5" />
                               <span>{c.whatsapp}</span>
                             </div>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-ink-muted">
-                          <div className="text-ink font-medium">{c.city || 'Lahore'}</div>
-                          <div className="text-[11px] truncate max-w-xs">{c.address || '-'}</div>
+                        <td className="py-4 px-4 text-ink-muted">
+                          <div className="text-ink font-semibold">{c.city || 'Lahore'}</div>
+                          <div className="text-xs truncate max-w-xs">{c.address || '-'}</div>
                         </td>
-                        <td className="py-3 px-4 text-right font-medium text-ink">
+                        <td className="py-4 px-4 text-right font-bold text-ink">
                           {formatCurrency(c.totalPurchase || 0)}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-4 px-4 text-right">
                           {(c.outstandingBalance || 0) > 0 ? (
-                            <span className="inline-block px-2.5 py-1 rounded bg-red-50 text-status-danger font-bold text-xs border border-red-200">
+                            <span className="inline-block px-3 py-1 rounded-lg bg-red-50 text-status-danger font-bold text-xs border border-red-200">
                               {formatCurrency(c.outstandingBalance!)}
                             </span>
                           ) : (c.outstandingBalance || 0) < 0 ? (
-                            <span className="inline-block px-2.5 py-1 rounded bg-green-50 text-status-success font-bold text-xs border border-green-200">
+                            <span className="inline-block px-3 py-1 rounded-lg bg-green-50 text-status-success font-bold text-xs border border-green-200">
                               Advance: {formatCurrency(Math.abs(c.outstandingBalance!))}
                             </span>
                           ) : (
-                            <span className="inline-block px-2 py-0.5 rounded bg-surface text-ink-muted font-medium text-[11px]">
+                            <span className="inline-block px-2.5 py-1 rounded-lg bg-surface text-ink-muted font-medium text-xs">
                               Cleared (Rs. 0)
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right space-x-1">
+                        <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
                           <Link href={`/customers/${c._id}`}>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-teal">
+                            <Button variant="ghost" size="sm" className="min-h-[34px] px-2.5 text-xs text-teal font-semibold">
                               Profile
                             </Button>
                           </Link>
@@ -403,7 +404,7 @@ function CustomersContent() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewLedger(c)}
-                            className="h-7 px-2 text-xs text-ink-muted"
+                            className="min-h-[34px] px-2.5 text-xs text-ink-muted"
                           >
                             Quick View
                           </Button>
@@ -411,17 +412,17 @@ function CustomersContent() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(c)}
-                            className="h-7 px-2 text-xs text-ink-muted"
+                            className="w-8 h-8 p-0 rounded-lg text-ink-muted hover:text-ink"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setCustomerToDelete(c)}
-                            className="h-7 px-2 text-xs text-status-danger hover:bg-status-dangerLight"
+                            className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </td>
                       </tr>
@@ -431,17 +432,17 @@ function CustomersContent() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="md:hidden divide-y divide-warm-borderLight p-3 space-y-3">
+              <div className="md:hidden divide-y divide-warm-borderLight p-4 space-y-4">
                 {displayedCustomers.map((c) => (
-                  <div key={c._id} className="pt-3 first:pt-0 space-y-2">
-                    <div className="flex items-start justify-between">
+                  <div key={c._id} className="pt-4 first:pt-0 space-y-3 bg-paper p-4 rounded-2xl border border-warm-border shadow-warm">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono font-bold text-teal bg-teal-subtle px-1.5 py-0.5 rounded">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-teal bg-teal-subtle px-2 py-0.5 rounded-lg">
                             {c.code}
                           </span>
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
                               c.type === 'supplier'
                                 ? 'bg-brass-light text-brass-dark'
                                 : 'bg-teal-subtle text-teal-dark'
@@ -451,58 +452,58 @@ function CustomersContent() {
                           </span>
                         </div>
                         <Link href={`/customers/${c._id}`}>
-                          <h4 className="text-sm font-bold text-ink mt-1 hover:text-teal">{c.name}</h4>
+                          <h4 className="text-base font-bold text-ink mt-1.5 hover:text-teal">{c.name}</h4>
                         </Link>
                       </div>
                       {(c.outstandingBalance || 0) > 0 ? (
-                        <span className="px-2 py-0.5 rounded bg-red-50 text-status-danger font-bold text-xs border border-red-200">
+                        <span className="px-2.5 py-1 rounded-lg bg-red-50 text-status-danger font-bold text-xs border border-red-200 shrink-0">
                           {formatCurrency(c.outstandingBalance!)}
                         </span>
                       ) : (c.outstandingBalance || 0) < 0 ? (
-                        <span className="px-2 py-0.5 rounded bg-green-50 text-status-success font-bold text-xs border border-green-200">
+                        <span className="px-2.5 py-1 rounded-lg bg-green-50 text-status-success font-bold text-xs border border-green-200 shrink-0">
                           Adv {formatCurrency(Math.abs(c.outstandingBalance!))}
                         </span>
                       ) : (
-                        <span className="text-[11px] text-ink-muted">Cleared</span>
+                        <span className="text-xs text-ink-muted shrink-0">Cleared</span>
                       )}
                     </div>
 
-                    <div className="text-xs text-ink-muted space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-teal" />
-                        <a href={`tel:${c.mobile}`} className="text-ink font-medium">
+                    <div className="text-sm text-ink-muted space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-teal shrink-0" />
+                        <a href={`tel:${c.mobile}`} className="text-ink font-semibold">
                           {c.mobile}
                         </a>
                       </div>
                       {c.address && (
-                        <div className="flex items-center gap-1.5 text-[11px]">
-                          <MapPin className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-2 text-xs">
+                          <MapPin className="w-4 h-4 text-ink-muted shrink-0" />
                           <span>{c.address}, {c.city || 'Lahore'}</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-warm-borderLight">
-                      <Link href={`/customers/${c._id}`}>
-                        <Button variant="outline" size="sm" className="h-7 text-xs">
-                          Profile
+                    <div className="pt-3 border-t border-warm-borderLight flex items-center justify-between gap-2">
+                      <Link href={`/customers/${c._id}`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full min-h-[38px] text-xs font-semibold">
+                          Profile &amp; Ledger
                         </Button>
                       </Link>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs"
                         onClick={() => handleEdit(c)}
+                        className="w-9 h-9 p-0 rounded-xl text-ink-muted hover:text-ink"
                       >
-                        Edit
+                        <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-status-danger hover:bg-status-dangerLight"
                         onClick={() => setCustomerToDelete(c)}
+                        className="w-9 h-9 p-0 rounded-xl text-status-danger hover:bg-status-dangerLight"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>

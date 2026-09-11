@@ -288,17 +288,17 @@ export default function SettingsPage() {
   return (
     <AppShell title="Settings">
       {/* Top Header */}
-      <div className="mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
           Settings &amp; Administration
         </h1>
-        <p className="text-xs md:text-sm text-ink-muted">
+        <p className="text-xs sm:text-sm text-ink-muted mt-1">
           Manage business identity, security passwords, audit trail, and backups
         </p>
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 border-b border-warm-border">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2.5 mb-6 sm:mb-8 border-b border-warm-border">
         {[
           { id: 'business', label: 'Business Profile', icon: Building2 },
           { id: 'invoice', label: 'Invoice & Terms', icon: FileText },
@@ -313,10 +313,10 @@ export default function SettingsPage() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id as any)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap min-h-[42px] transition-all ${
                 isActive
                   ? 'bg-teal text-white shadow-warm'
-                  : 'text-ink-muted hover:text-ink hover:bg-paper'
+                  : 'text-ink-muted hover:text-ink hover:bg-paper border border-transparent hover:border-warm-border'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -327,8 +327,8 @@ export default function SettingsPage() {
       </div>
 
       {loading ? (
-        <div className="py-24 text-center text-xs text-ink-muted flex items-center justify-center">
-          <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+        <div className="py-24 text-center text-sm text-ink-muted flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 animate-spin text-teal mr-2" />
           Loading configuration...
         </div>
       ) : (

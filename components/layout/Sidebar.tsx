@@ -91,21 +91,21 @@ export function Sidebar() {
     <aside
       className={cn(
         'hidden md:flex flex-col border-r border-warm-border bg-paper-light transition-all duration-300 z-30 h-screen sticky top-0',
-        collapsed ? 'w-20' : 'w-64'
+        collapsed ? 'w-20' : 'w-68 lg:w-72'
       )}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between p-4 border-b border-warm-borderLight h-16">
+      <div className="flex items-center justify-between px-4 sm:px-5 border-b border-warm-borderLight h-16 sm:h-18">
         {!collapsed && (
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-lg bg-white p-1 border border-warm-border flex items-center justify-center shrink-0 shadow-warm">
+            <div className="w-10 h-10 rounded-xl bg-white p-1 border border-warm-border flex items-center justify-center shrink-0 shadow-warm">
               <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="truncate">
               <h1 className="text-sm font-bold tracking-tight text-ink truncate leading-tight">
                 {userSession.businessName || 'Umar Usman Interior'}
               </h1>
-              <p className="text-[11px] font-medium text-ink-muted truncate">
+              <p className="text-xs font-medium text-ink-muted truncate">
                 Wallpaper Manager
               </p>
             </div>
@@ -114,7 +114,7 @@ export function Sidebar() {
 
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg text-ink-muted hover:bg-paper-dark hover:text-ink transition-colors ml-auto"
+          className="p-2 rounded-xl text-ink-muted hover:bg-paper-dark hover:text-ink transition-colors ml-auto"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -127,7 +127,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <div className="flex-1 py-5 px-3.5 space-y-1.5 overflow-y-auto">
         {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -138,7 +138,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs md:text-sm font-medium transition-all duration-150',
+                'group flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-medium transition-all duration-150',
                 isActive
                   ? 'bg-teal text-white shadow-warm font-semibold'
                   : 'text-ink hover:bg-paper-dark hover:text-teal',
@@ -154,7 +154,7 @@ export function Sidebar() {
               />
               {!collapsed && <span className="truncate">{item.label}</span>}
               {!collapsed && isActive && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brass-light" />
+                <div className="ml-auto w-2 h-2 rounded-full bg-brass-light" />
               )}
             </Link>
           );
@@ -162,12 +162,12 @@ export function Sidebar() {
       </div>
 
       {/* User Role Badge & Footer */}
-      <div className="p-3 border-t border-warm-borderLight space-y-2">
+      <div className="p-4 border-t border-warm-borderLight space-y-2.5">
         {!collapsed && (
-          <div className="p-2.5 bg-paper rounded-xl border border-warm-border flex items-center justify-between">
+          <div className="p-3 bg-paper rounded-xl border border-warm-border flex items-center justify-between">
             <div className="truncate mr-2">
-              <div className="text-xs font-bold text-ink truncate">{userSession.name}</div>
-              <div className="text-[10px] text-ink-muted">Signed In</div>
+              <div className="text-xs sm:text-sm font-bold text-ink truncate">{userSession.name}</div>
+              <div className="text-[11px] text-ink-muted">Signed In</div>
             </div>
             {userSession.role === 'admin' ? (
               <Badge variant="brass" size="sm">Admin</Badge>
@@ -187,7 +187,7 @@ export function Sidebar() {
             }
           }}
           className={cn(
-            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-status-danger hover:bg-status-dangerLight transition-colors',
+            'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-status-danger hover:bg-status-dangerLight transition-colors min-h-[42px]',
             collapsed && 'justify-center px-0'
           )}
           title="Logout"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -60,6 +60,113 @@ interface OtherLineItem {
   qty: number;
   rate: number;
   amount: number;
+}
+
+interface PreparedProduct {
+  product: ProductOption;
+  rawWp: string;
+  normWp: string;
+  numericWp: string;
+  tokens: string[];
+  intWp: number | null;
+}
+
+interface WallpaperSearchResult {
+  hasDigit: boolean;
+  matches: ProductOption[];
+}
+
+function searchWallpaperCatalog(
+  preparedList: PreparedProduct[],
+  query: string
+): WallpaperSearchResult {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return { hasDigit: false, matches: [] };
+  }
+
+  // Requirement 2: Letter-only input must NOT return results
+  if (!/\d/.test(trimmed)) {
+    return { hasDigit: false, matches: [] };
+  }
+
+  const queryDigits = trimmed.replace(/\D/g, '');
+  const queryNorm = trimmed.toLowerCase().replace(/[\s-_]/g, '');
+  const queryInt = queryDigits ? parseInt(queryDigits, 10) : null;
+
+  const exactMatches: ProductOption[] = [];
+  const startsWithMatches: ProductOption[] = [];
+  const containsMatches: ProductOption[] = [];
+
+  for (let i = 0; i < preparedList.length; i++) {
+    const item = preparedList[i];
+    const { numericWp, tokens, intWp, normWp, product } = item;
+
+    if (!numericWp) continue;
+
+    // 1. Exact match priority:
+    // Matches if:
+    // - Full numeric digit string matches query digits (e.g. "7668" === "7668", "261" === "261")
+    // - Or parsed integer matches (e.g. "0042" vs "42")
+    // - Or normalized string matches queryNorm (e.g. "WP-TEST-7668" vs "WP-TEST-7668" or "WP7668")
+    // - Or any digit token in WP equals query digits
+    const isExact =
+      numericWp === queryDigits ||
+      (intWp !== null && queryInt !== null && intWp === queryInt) ||
+      normWp === queryNorm ||
+      tokens.includes(queryDigits);
+
+    if (isExact) {
+      exactMatches.push(product);
+      continue;
+    }
+
+    // 2. Starts with query digits (e.g. searching "76" matches "7668")
+    const isStartsWith =
+      numericWp.startsWith(queryDigits) ||
+      tokens.some((t) => t.startsWith(queryDigits));
+
+    if (isStartsWith) {
+      startsWithMatches.push(product);
+      continue;
+    }
+
+    // 3. Contains query digits (e.g. searching "7" matches "876")
+    const isContains =
+      numericWp.includes(queryDigits) ||
+      tokens.some((t) => t.includes(queryDigits)) ||
+      (queryNorm.length >= 3 && normWp.includes(queryNorm));
+
+    if (isContains) {
+      containsMatches.push(product);
+    }
+  }
+
+  // Sort starts-with by numeric closeness / length difference
+  startsWithMatches.sort((a, b) => {
+    const aNum = (a.wp || '').replace(/\D/g, '');
+    const bNum = (b.wp || '').replace(/\D/g, '');
+    if (aNum.length !== bNum.length) return aNum.length - bNum.length;
+    return (a.wp || '').localeCompare(b.wp || '');
+  });
+
+  // Sort contains by earliest index and length difference
+  containsMatches.sort((a, b) => {
+    const aNum = (a.wp || '').replace(/\D/g, '');
+    const bNum = (b.wp || '').replace(/\D/g, '');
+    const aIdx = aNum.indexOf(queryDigits);
+    const bIdx = bNum.indexOf(queryDigits);
+    if (aIdx !== bIdx && aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aNum.length !== bNum.length) return aNum.length - bNum.length;
+    return (a.wp || '').localeCompare(b.wp || '');
+  });
+
+  const combined = [...exactMatches, ...startsWithMatches, ...containsMatches];
+
+  return {
+    hasDigit: true,
+    matches: combined.slice(0, 15),
+  };
 }
 
 export default function NewInvoicePage() {
@@ -205,40 +312,37 @@ export default function NewInvoicePage() {
     ]);
   };
 
-  const searchTimeoutRef = React.useRef<{ [key: number]: NodeJS.Timeout }>({});
+  // Precompute normalized WP search fields for fast synchronous live search
+  const preparedProducts = useMemo<PreparedProduct[]>(() => {
+    return products.map((p) => {
+      const rawWp = p.wp || '';
+      const normWp = rawWp.toLowerCase().replace(/[\s-_]/g, '');
+      const numericWp = rawWp.replace(/\D/g, '');
+      const tokens = rawWp.match(/\d+/g) || [];
+      const intWp = numericWp ? parseInt(numericWp, 10) : null;
+      return {
+        product: p,
+        rawWp,
+        normWp,
+        numericWp,
+        tokens,
+        intWp,
+      };
+    });
+  }, [products]);
 
   const handleWallpaperSearchChange = (index: number, val: string) => {
     setWallpaperItems((prev) => {
       const next = [...prev];
+      const isCleared = !val.trim();
       next[index] = {
         ...next[index],
         searchQuery: val,
         showDropdown: Boolean(val.trim()),
+        ...(isCleared ? { productId: '', wp: '', design: '', availableStock: undefined } : {}),
       };
       return next;
     });
-
-    const trimmed = val.trim();
-    if (trimmed.length >= 2) {
-      if (searchTimeoutRef.current[index]) {
-        clearTimeout(searchTimeoutRef.current[index]);
-      }
-      searchTimeoutRef.current[index] = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/products?q=${encodeURIComponent(trimmed)}`);
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-            setProducts((prevProds) => {
-              const existingIds = new Set(prevProds.map((p) => p._id));
-              const newItems = json.data.filter((p: ProductOption) => !existingIds.has(p._id));
-              return newItems.length > 0 ? [...prevProds, ...newItems] : prevProds;
-            });
-          }
-        } catch {
-          // ignore dynamic query error
-        }
-      }, 300);
-    }
   };
 
   const handleSelectWallpaperProduct = (index: number, prod: ProductOption) => {
@@ -444,21 +548,21 @@ export default function NewInvoicePage() {
   return (
     <AppShell title="Create Invoice">
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
             onClick={() => router.back()}
             leftIcon={<ArrowLeft className="w-4 h-4" />}
           >
             Back
           </Button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-ink tracking-tight">
               New Customer Invoice
             </h1>
-            <p className="text-xs text-ink-muted">
+            <p className="text-xs sm:text-sm text-ink-muted">
               Auto stock deduction • Real-time totals • Print ready
             </p>
           </div>
@@ -466,18 +570,19 @@ export default function NewInvoicePage() {
 
         <Button
           variant="teal"
-          size="md"
+          size="lg"
           onClick={handleSubmitInvoice}
           isLoading={submitting}
-          leftIcon={<Save className="w-4 h-4" />}
+          leftIcon={<Save className="w-5 h-5" />}
+          className="shadow-warm"
         >
           Save &amp; Print Invoice
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         {/* Left Column: Customer & Line Items (2 cols) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
           {/* Customer Selection Card */}
           <Card>
             <CardHeader>
@@ -485,25 +590,25 @@ export default function NewInvoicePage() {
               <CardDescription>Select registered client or add new on the fly</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs sm:text-sm font-bold uppercase tracking-wider text-ink">
                       Select Customer *
                     </label>
                     <button
                       type="button"
                       onClick={() => setIsAddCustomerOpen(true)}
-                      className="text-xs text-teal font-semibold hover:underline flex items-center gap-1"
+                      className="text-xs sm:text-sm text-teal font-semibold hover:underline flex items-center gap-1"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-4 h-4" />
                       <span>New Customer</span>
                     </button>
                   </div>
                   <select
                     value={selectedCustomerId}
                     onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-warm-border bg-paper-light px-3.5 py-2.5 text-sm sm:text-base text-ink focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
                     required
                   >
                     <option value="">-- Choose Customer / Party --</option>
@@ -550,13 +655,13 @@ export default function NewInvoicePage() {
                 />
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
+                  <label className="block text-xs sm:text-sm font-bold uppercase tracking-wider text-ink mb-1">
                     Quotation Terms
                   </label>
                   <select
                     value={terms}
                     onChange={(e) => setTerms(e.target.value)}
-                    className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-warm-border bg-paper-light px-3.5 py-2.5 text-sm sm:text-base text-ink focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
                   >
                     <option value="Custom">Custom</option>
                     <option value="100% advance in cash">100% advance in cash</option>
@@ -570,74 +675,53 @@ export default function NewInvoicePage() {
 
           {/* SECTION 1: WALLPAPER ITEMS (Catalog-Linked, Auto Stock-Cut) */}
           <Card className="border border-warm-border">
-            <CardHeader className="pb-3 border-b border-warm-borderLight">
-              <div className="flex items-center justify-between">
+            <CardHeader className="pb-4 border-b border-warm-borderLight">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-teal" />
+                  <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2.5">
+                    <Layers className="w-5 h-5 text-teal shrink-0" />
                     <span>Wallpaper Items</span>
                   </CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardDescription className="text-xs sm:text-sm mt-0.5">
                     Stock/catalog se wallpaper rolls — invoice save hone par inka stock auto-cut hoga
                   </CardDescription>
                 </div>
-                <Badge variant="teal">{wallpaperItems.filter((w) => w.wp || w.productId).length} Rolls</Badge>
+                <Badge variant="teal" size="md" className="shrink-0 font-bold">
+                  {wallpaperItems.filter((w) => w.wp || w.productId).length} Rolls
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
+            <CardContent className="space-y-5 pt-5">
               {wallpaperItems.length === 0 ? (
-                <div className="py-6 text-center text-xs text-ink-muted border border-dashed border-warm-border rounded-xl">
+                <div className="py-8 text-center text-sm text-ink-muted border-2 border-dashed border-warm-border rounded-2xl">
                   No wallpaper items added yet. Click &ldquo;+ Add Wallpaper Item&rdquo; below.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {wallpaperItems.map((item, index) => {
-                    const normalizeText = (str?: string) => (str || '').toLowerCase().replace(/[\s-_]/g, '');
-                    const queryRaw = item.searchQuery.trim().toLowerCase();
-                    const queryNorm = normalizeText(item.searchQuery);
-
-                    const filteredMatches = queryRaw
-                      ? products
-                          .filter((p) => {
-                            const wpRaw = (p.wp || '').toLowerCase();
-                            const wpNorm = normalizeText(p.wp);
-                            const designRaw = (p.design || '').toLowerCase();
-                            const designNorm = normalizeText(p.design);
-                            const brandRaw = (p.brand || '').toLowerCase();
-                            const colorRaw = (p.color || '').toLowerCase();
-                            const codeRaw = (p.code || '').toLowerCase();
-
-                            return (
-                              wpRaw.includes(queryRaw) ||
-                              wpNorm.includes(queryNorm) ||
-                              designRaw.includes(queryRaw) ||
-                              designNorm.includes(queryNorm) ||
-                              brandRaw.includes(queryRaw) ||
-                              colorRaw.includes(queryRaw) ||
-                              codeRaw.includes(queryRaw)
-                            );
-                          })
-                          .slice(0, 10)
-                      : [];
+                    const searchResult = searchWallpaperCatalog(preparedProducts, item.searchQuery);
 
                     return (
                       <div
                         key={item.id || index}
-                        className="p-3 bg-paper rounded-xl border border-warm-border space-y-2 relative"
+                        className="p-4 sm:p-5 bg-paper rounded-2xl border border-warm-border space-y-3 relative shadow-warm"
                       >
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-start">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-start">
                           {/* Search & Select Autocomplete Box (5 cols) */}
                           <div className="md:col-span-5 relative">
-                            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
-                              Search Wallpaper (WP# / Design)
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+                              Search Wallpaper (WP#)
                             </label>
                             <div className="relative">
-                              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-ink-muted" />
+                              <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-ink-muted" />
                               <input
                                 type="text"
-                                placeholder="WP number ya design type karein..."
+                                placeholder="Enter wallpaper number (e.g. 7668, WP-7668)..."
                                 value={item.searchQuery}
                                 onChange={(e) => handleWallpaperSearchChange(index, e.target.value)}
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 onFocus={() => {
                                   if (item.searchQuery.trim()) {
                                     setWallpaperItems((prev) => {
@@ -657,52 +741,59 @@ export default function NewInvoicePage() {
                                     });
                                   }, 250);
                                 }}
-                                className="w-full pl-8 pr-3 py-1.5 text-xs bg-paper-light border border-warm-border rounded-lg text-ink font-semibold focus:outline-none focus:border-teal"
+                                className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 text-sm sm:text-base bg-paper-light border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 transition-all"
                               />
                             </div>
 
                             {/* Dropdown with yellow highlight */}
                             {item.showDropdown && item.searchQuery.trim() && (
-                              <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-amber-50 border border-amber-300 rounded-xl shadow-warm-lg max-h-52 overflow-y-auto divide-y divide-amber-200 p-1">
+                              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-amber-50 border border-amber-300 rounded-2xl shadow-warm-lg max-h-64 overflow-y-auto divide-y divide-amber-200 p-1.5">
                                 {isProductsLoading ? (
-                                  <div className="p-3 text-center text-xs text-amber-900 flex items-center justify-center gap-2">
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-teal" />
+                                  <div className="p-4 text-center text-xs sm:text-sm text-amber-900 flex items-center justify-center gap-2.5">
+                                    <Loader2 className="w-4 h-4 animate-spin text-teal" />
                                     <span>Loading wallpapers catalog...</span>
                                   </div>
-                                ) : filteredMatches.length === 0 ? (
-                                  <div className="p-3 text-center text-xs text-amber-900">
-                                    <p className="font-semibold">No matching wallpapers found for &ldquo;{item.searchQuery}&rdquo;</p>
-                                    <p className="text-[10px] text-amber-700 mt-0.5">Check WP# or try searching without hyphens/spaces.</p>
+                                ) : !searchResult.hasDigit ? (
+                                  <div className="p-4 text-center text-xs sm:text-sm text-amber-900">
+                                    <p className="font-bold">Enter a wallpaper number</p>
+                                    <p className="text-xs text-amber-700 mt-1">Please type a numeric WP number (e.g. 7668 or WP-7668).</p>
+                                  </div>
+                                ) : searchResult.matches.length === 0 ? (
+                                  <div className="p-4 text-center text-xs sm:text-sm text-amber-900">
+                                    <p className="font-bold">No matching wallpapers found for &lsquo;{item.searchQuery.trim()}&rsquo;.</p>
+                                    <p className="text-xs text-amber-700 mt-1">Check WP# or verify stock availability.</p>
                                   </div>
                                 ) : (
-                                  filteredMatches.map((p) => (
+                                  searchResult.matches.map((p) => (
                                     <div
                                       key={p._id}
-                                      onMouseDown={(e) => {
+                                      onPointerDown={(e) => {
                                         e.preventDefault();
                                         handleSelectWallpaperProduct(index, p);
                                       }}
-                                      className="p-2 bg-amber-100 hover:bg-amber-200 rounded-lg cursor-pointer flex items-center justify-between transition-colors my-0.5 border border-amber-200"
+                                      className="p-3 sm:p-3.5 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 rounded-xl cursor-pointer flex items-center justify-between transition-colors my-1 border border-amber-200/80 gap-3"
                                     >
-                                      <div>
-                                        <span className="font-mono font-bold text-xs bg-amber-300 text-amber-950 px-1.5 py-0.5 rounded mr-1.5 border border-amber-400">
-                                          {p.wp}
-                                        </span>
-                                        <span className="text-xs font-semibold text-ink">{p.design}</span>
-                                        {p.brand && (
-                                          <span className="text-[10px] text-ink-muted ml-1">({p.brand})</span>
-                                        )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center flex-wrap gap-2">
+                                          <span className="font-mono font-extrabold text-xs sm:text-sm bg-amber-300 text-amber-950 px-2 py-0.5 rounded-lg border border-amber-400 shrink-0">
+                                            {p.wp}
+                                          </span>
+                                          <span className="text-xs sm:text-sm font-bold text-ink truncate">{p.design}</span>
+                                          {p.brand && (
+                                            <span className="text-xs text-ink-muted shrink-0">({p.brand})</span>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-ink">
+                                      <div className="flex items-center gap-2.5 shrink-0">
+                                        <span className="text-xs sm:text-sm font-extrabold text-teal whitespace-nowrap">
                                           Rs. {p.salePrice.toLocaleString()}
                                         </span>
                                         {p.stock <= 0 ? (
-                                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-red-100 text-red-800 rounded border border-red-200">
+                                          <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-red-100 text-red-800 rounded-md border border-red-200 whitespace-nowrap">
                                             Out
                                           </span>
                                         ) : (
-                                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded border border-emerald-200">
+                                          <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md border border-emerald-200 whitespace-nowrap">
                                             {p.stock} rolls
                                           </span>
                                         )}
@@ -714,12 +805,12 @@ export default function NewInvoicePage() {
                             )}
 
                             {item.wp && (
-                              <div className="text-[10px] text-ink-muted mt-1 flex items-center gap-2 font-mono">
-                                <span className="font-bold text-teal">WP: {item.wp}</span>
-                                {item.design && <span>• {item.design}</span>}
+                              <div className="text-xs text-ink-muted mt-2 flex items-center flex-wrap gap-2 font-mono">
+                                <span className="font-bold text-teal bg-teal-subtle px-2 py-0.5 rounded-md">WP: {item.wp}</span>
+                                {item.design && <span className="font-sans font-semibold text-ink">• {item.design}</span>}
                                 {item.availableStock !== undefined && (
-                                  <span className="text-status-success font-sans font-semibold">
-                                    (Stock: {item.availableStock} rolls)
+                                  <span className="text-status-success font-sans font-bold">
+                                    (In Stock: {item.availableStock} rolls)
                                   </span>
                                 )}
                               </div>
@@ -728,7 +819,7 @@ export default function NewInvoicePage() {
 
                           {/* Qty (2 cols) */}
                           <div className="md:col-span-2">
-                            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                               Qty (Rolls)
                             </label>
                             <input
@@ -736,13 +827,13 @@ export default function NewInvoicePage() {
                               min="1"
                               value={item.qty}
                               onChange={(e) => handleUpdateWallpaperQty(index, Number(e.target.value))}
-                              className="w-full px-2.5 py-1.5 bg-paper-light border border-warm-border rounded-lg text-xs font-bold text-ink text-center focus:outline-none focus:border-teal"
+                              className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-center focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
                             />
                           </div>
 
                           {/* Price / Rate (2 cols) */}
                           <div className="md:col-span-2">
-                            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                               Price (Rs.)
                             </label>
                             <input
@@ -750,29 +841,29 @@ export default function NewInvoicePage() {
                               min="0"
                               value={item.rate}
                               onChange={(e) => handleUpdateWallpaperRate(index, Number(e.target.value))}
-                              className="w-full px-2.5 py-1.5 bg-paper-light border border-warm-border rounded-lg text-xs font-semibold text-ink text-right focus:outline-none focus:border-teal"
+                              className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-right focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
                             />
                           </div>
 
                           {/* Amount (2 cols) */}
                           <div className="md:col-span-2">
-                            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                               Amount (Rs.)
                             </label>
-                            <div className="px-2.5 py-1.5 bg-warm-border/30 border border-warm-border rounded-lg text-xs font-bold text-ink text-right font-mono">
+                            <div className="min-h-[44px] px-3.5 py-2 bg-warm-border/30 border border-warm-border rounded-xl text-sm sm:text-base font-extrabold text-ink text-right flex items-center justify-end font-mono">
                               {formatCurrency(item.amount)}
                             </div>
                           </div>
 
                           {/* Remove button (1 col) */}
-                          <div className="md:col-span-1 flex items-center justify-center pt-5">
+                          <div className="md:col-span-1 flex items-center justify-center pt-0 md:pt-6">
                             <button
                               type="button"
                               onClick={() => handleRemoveWallpaperItem(index)}
-                              className="p-1.5 text-ink-muted hover:text-status-danger rounded-lg hover:bg-status-dangerLight transition-colors"
+                              className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-ink-muted hover:text-status-danger rounded-xl hover:bg-status-dangerLight transition-colors"
                               title="Remove item"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
                         </div>
@@ -783,24 +874,24 @@ export default function NewInvoicePage() {
               )}
 
               {/* Add Wallpaper Item Button & Row Total */}
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="md"
                   onClick={handleAddWallpaperItem}
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
-                  className="text-xs text-teal border-teal/40 hover:bg-teal-subtle"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  className="w-full sm:w-auto text-teal border-teal/40 hover:bg-teal-subtle font-bold min-h-[44px]"
                 >
                   + Add Wallpaper Item
                 </Button>
-                <div className="text-xs font-semibold text-ink">
-                  Wallpaper Total: <span className="font-bold text-teal font-mono">{formatCurrency(wallpaperSubtotal)}</span>
+                <div className="text-sm font-semibold text-ink">
+                  Wallpaper Total: <span className="font-extrabold text-teal text-base font-mono">{formatCurrency(wallpaperSubtotal)}</span>
                 </div>
               </div>
 
               {/* Section 1 Hint Text */}
-              <p className="text-[11px] text-ink-muted leading-relaxed bg-paper-light p-2.5 rounded-lg border border-warm-borderLight">
+              <p className="text-xs text-ink-muted leading-relaxed bg-paper-light p-3.5 rounded-xl border border-warm-borderLight">
                 Wallpaper number ya design type karein — matching wallpaper neeche yellow mein highlight hoke dikhengay, click karke select karein. Price field mein aap hamesha apni marzi ka rate likh saktay hain (chahe stock mein price set ho ya na ho) — total khud ba khud calculate hota rahega.
               </p>
             </CardContent>
@@ -808,36 +899,38 @@ export default function NewInvoicePage() {
 
           {/* SECTION 2: OTHER ITEMS / CHARGES (Free-text, Zero Stock-Cut) */}
           <Card className="border border-warm-border">
-            <CardHeader className="pb-3 border-b border-warm-borderLight">
-              <div className="flex items-center justify-between">
+            <CardHeader className="pb-4 border-b border-warm-borderLight">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Package className="w-4 h-4 text-brass-dark" />
+                  <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2.5">
+                    <Package className="w-5 h-5 text-brass-dark shrink-0" />
                     <span>Other Items / Charges</span>
                   </CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardDescription className="text-xs sm:text-sm mt-0.5">
                     (panels, PU stone, gum, installation, delivery — kuch bhi)
                   </CardDescription>
                 </div>
-                <Badge variant="brass">{otherItems.length} Other Lines</Badge>
+                <Badge variant="brass" size="md" className="shrink-0 font-bold">
+                  {otherItems.length} Other Lines
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
+            <CardContent className="space-y-5 pt-5">
               {otherItems.length === 0 ? (
-                <div className="py-6 text-center text-xs text-ink-muted border border-dashed border-warm-border rounded-xl">
+                <div className="py-8 text-center text-sm text-ink-muted border-2 border-dashed border-warm-border rounded-2xl">
                   No other items or charges added. Click &ldquo;+ Add Other Item&rdquo; below for panels, PU stone, gum, installation, etc.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {otherItems.map((item, index) => (
                     <div
                       key={item.id || index}
-                      className="p-3 bg-paper rounded-xl border border-warm-border space-y-2"
+                      className="p-4 sm:p-5 bg-paper rounded-2xl border border-warm-border space-y-3 shadow-warm"
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-start">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-start">
                         {/* Free-text Item / Charge Name (5 cols) */}
                         <div className="md:col-span-5">
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                             Item / Charge Description
                           </label>
                           <input
@@ -845,13 +938,13 @@ export default function NewInvoicePage() {
                             placeholder="Item ya charge ka naam (e.g. Gum charges, Installation, Panels)..."
                             value={item.title}
                             onChange={(e) => handleUpdateOtherTitle(index, e.target.value)}
-                            className="w-full px-3 py-1.5 text-xs bg-paper-light border border-warm-border rounded-lg text-ink font-semibold focus:outline-none focus:border-brass-dark"
+                            className="w-full min-h-[44px] px-3.5 py-2.5 text-sm sm:text-base bg-paper-light border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-brass-dark focus:ring-2 focus:ring-brass/20"
                           />
                         </div>
 
                         {/* Qty (2 cols) */}
                         <div className="md:col-span-2">
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                             Qty
                           </label>
                           <input
@@ -859,13 +952,13 @@ export default function NewInvoicePage() {
                             min="1"
                             value={item.qty}
                             onChange={(e) => handleUpdateOtherQty(index, Number(e.target.value))}
-                            className="w-full px-2.5 py-1.5 bg-paper-light border border-warm-border rounded-lg text-xs font-bold text-ink text-center focus:outline-none focus:border-brass-dark"
+                            className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-center focus:outline-none focus:border-brass-dark focus:ring-2 focus:ring-brass/20"
                           />
                         </div>
 
                         {/* Price (2 cols) */}
                         <div className="md:col-span-2">
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                             Price (Rs.)
                           </label>
                           <input
@@ -873,29 +966,29 @@ export default function NewInvoicePage() {
                             min="0"
                             value={item.rate}
                             onChange={(e) => handleUpdateOtherRate(index, Number(e.target.value))}
-                            className="w-full px-2.5 py-1.5 bg-paper-light border border-warm-border rounded-lg text-xs font-semibold text-ink text-right focus:outline-none focus:border-brass-dark"
+                            className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-right focus:outline-none focus:border-brass-dark focus:ring-2 focus:ring-brass/20"
                           />
                         </div>
 
                         {/* Amount (2 cols) */}
                         <div className="md:col-span-2">
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                             Amount (Rs.)
                           </label>
-                          <div className="px-2.5 py-1.5 bg-warm-border/30 border border-warm-border rounded-lg text-xs font-bold text-ink text-right font-mono">
+                          <div className="min-h-[44px] px-3.5 py-2 bg-warm-border/30 border border-warm-border rounded-xl text-sm sm:text-base font-extrabold text-ink text-right flex items-center justify-end font-mono">
                             {formatCurrency(item.amount)}
                           </div>
                         </div>
 
                         {/* Remove button (1 col) */}
-                        <div className="md:col-span-1 flex items-center justify-center pt-5">
+                        <div className="md:col-span-1 flex items-center justify-center pt-0 md:pt-6">
                           <button
                             type="button"
                             onClick={() => handleRemoveOtherItem(index)}
-                            className="p-1.5 text-ink-muted hover:text-status-danger rounded-lg hover:bg-status-dangerLight transition-colors"
+                            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-ink-muted hover:text-status-danger rounded-xl hover:bg-status-dangerLight transition-colors"
                             title="Remove charge"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
@@ -905,24 +998,24 @@ export default function NewInvoicePage() {
               )}
 
               {/* Add Other Item Button & Row Total */}
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="md"
                   onClick={handleAddOtherItem}
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
-                  className="text-xs text-brass-dark border-brass-dark/40 hover:bg-amber-50"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  className="w-full sm:w-auto text-brass-dark border-brass-dark/40 hover:bg-amber-50 font-bold min-h-[44px]"
                 >
                   + Add Other Item
                 </Button>
-                <div className="text-xs font-semibold text-ink">
-                  Other Charges Total: <span className="font-bold text-brass-dark font-mono">{formatCurrency(otherSubtotal)}</span>
+                <div className="text-sm font-semibold text-ink">
+                  Other Charges Total: <span className="font-extrabold text-brass-dark text-base font-mono">{formatCurrency(otherSubtotal)}</span>
                 </div>
               </div>
 
               {/* Section 2 Hint Text */}
-              <p className="text-[11px] text-ink-muted leading-relaxed bg-paper-light p-2.5 rounded-lg border border-warm-borderLight">
+              <p className="text-xs text-ink-muted leading-relaxed bg-paper-light p-3.5 rounded-xl border border-warm-borderLight">
                 Wallpaper ke ilawa jo bhi aur item ya charge bechna/add karna hai — panels, PU stone, gum charges, installation, ya koi bhi cheez — uska naam, quantity aur price yahan manually likh dein, ye bhi stock catalog ki tarah nahi balke aap khud type kar ke add karte hain, total mein khud shamil ho jayega.
               </p>
             </CardContent>
@@ -930,35 +1023,35 @@ export default function NewInvoicePage() {
         </div>
 
         {/* Right Column: Calculations & Payment Summary (1 col) */}
-        <div className="space-y-6">
-          <Card variant="elevated" className="border-t-4 border-t-teal">
+        <div className="space-y-6 sm:space-y-8">
+          <Card variant="elevated" className="border-t-4 border-t-teal shadow-warm-lg">
             <CardHeader>
-              <CardTitle>Invoice Summary</CardTitle>
+              <CardTitle className="text-xl font-bold">Invoice Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 sm:space-y-5">
               {/* Wallpaper Subtotal */}
-              <div className="flex items-center justify-between text-xs pb-1 text-ink-muted">
+              <div className="flex items-center justify-between text-sm pb-1 text-ink-muted">
                 <span>Wallpaper Items Total:</span>
                 <span className="font-mono font-semibold text-ink">{formatCurrency(wallpaperSubtotal)}</span>
               </div>
 
               {/* Other Items Subtotal */}
               {otherSubtotal > 0 && (
-                <div className="flex items-center justify-between text-xs pb-1 text-ink-muted">
+                <div className="flex items-center justify-between text-sm pb-1 text-ink-muted">
                   <span>Other Charges Total:</span>
                   <span className="font-mono font-semibold text-ink">{formatCurrency(otherSubtotal)}</span>
                 </div>
               )}
 
               {/* Total Subtotal */}
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-warm-borderLight">
+              <div className="flex items-center justify-between text-sm pb-3 border-b border-warm-borderLight">
                 <span className="font-bold text-ink">Combined Subtotal:</span>
-                <span className="font-bold text-teal text-sm font-mono">{formatCurrency(subtotal)}</span>
+                <span className="font-bold text-teal text-base font-mono">{formatCurrency(subtotal)}</span>
               </div>
 
               {/* Discount (Rs.) */}
-              <div className="space-y-1.5 pb-2 border-b border-warm-borderLight">
-                <div className="flex items-center justify-between text-xs">
+              <div className="space-y-2 pb-3 border-b border-warm-borderLight">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-ink-muted font-medium">Discount (Rs.):</span>
                   <input
                     type="number"
@@ -966,70 +1059,70 @@ export default function NewInvoicePage() {
                     placeholder="0"
                     value={discountRs || ''}
                     onChange={(e) => setDiscountRs(Number(e.target.value))}
-                    className="w-24 px-2 py-1 bg-paper border border-warm-border rounded text-right text-xs font-semibold text-ink focus:outline-none focus:border-teal font-mono"
+                    className="w-28 min-h-[38px] px-3 py-1.5 bg-paper border border-warm-border rounded-xl text-right text-sm font-bold text-ink focus:outline-none focus:border-teal font-mono"
                   />
                 </div>
                 {discountAmount > 0 && (
-                  <div className="flex items-center justify-between text-[11px] text-status-danger">
+                  <div className="flex items-center justify-between text-xs text-status-danger">
                     <span>Discount Deducted:</span>
-                    <span className="font-mono">- {formatCurrency(discountAmount)}</span>
+                    <span className="font-mono font-bold">- {formatCurrency(discountAmount)}</span>
                   </div>
                 )}
               </div>
 
               {/* Tax Toggle & Rate */}
-              <div className="space-y-1.5 pb-2 border-b border-warm-borderLight">
-                <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer text-ink-muted">
+              <div className="space-y-2 pb-3 border-b border-warm-borderLight">
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer text-ink font-medium">
                     <input
                       type="checkbox"
                       checked={taxOn}
                       onChange={(e) => setTaxOn(e.target.checked)}
-                      className="rounded text-teal focus:ring-teal"
+                      className="w-4 h-4 rounded text-teal focus:ring-teal"
                     />
                     <span>Apply Tax</span>
                   </label>
                   {taxOn && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
                         value={taxRate}
                         onChange={(e) => setTaxRate(Number(e.target.value))}
-                        className="w-14 px-2 py-0.5 bg-paper border border-warm-border rounded text-right text-xs font-semibold text-ink"
+                        className="w-16 min-h-[36px] px-2.5 py-1 bg-paper border border-warm-border rounded-xl text-right text-sm font-bold text-ink"
                       />
-                      <span className="text-xs text-ink-muted">%</span>
+                      <span className="text-sm text-ink-muted font-medium">%</span>
                     </div>
                   )}
                 </div>
                 {taxOn && taxAmount > 0 && (
-                  <div className="flex items-center justify-between text-[11px] text-ink-muted">
+                  <div className="flex items-center justify-between text-xs text-ink-muted">
                     <span>Tax Added:</span>
-                    <span>+ {formatCurrency(taxAmount)}</span>
+                    <span className="font-bold">+ {formatCurrency(taxAmount)}</span>
                   </div>
                 )}
               </div>
 
               {/* Grand Total */}
-              <div className="p-3 bg-paper rounded-xl border border-warm-border flex items-center justify-between">
-                <span className="text-xs font-bold uppercase text-ink">Grand Total:</span>
-                <span className="text-lg font-extrabold text-teal">{formatCurrency(total)}</span>
+              <div className="p-4 sm:p-5 bg-paper rounded-2xl border border-warm-border flex items-center justify-between shadow-warm">
+                <span className="text-xs sm:text-sm font-bold uppercase text-ink">Grand Total:</span>
+                <span className="text-xl sm:text-2xl font-black text-teal">{formatCurrency(total)}</span>
               </div>
 
               {/* Advance Payment Quick Actions */}
-              <div className="space-y-2 pt-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
+              <div className="space-y-2.5 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-light">
                     Advance Payment (PKR)
                   </label>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       type="button"
                       onClick={() => {
                         setPaidAmount(roundMoney(total / 2));
                         setJobStatus('Advance Received');
                       }}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-subtle text-teal hover:bg-teal hover:text-white transition-colors"
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-subtle text-teal hover:bg-teal hover:text-white transition-colors min-h-[32px]"
                     >
                       50% Advance
                     </button>
@@ -1039,7 +1132,7 @@ export default function NewInvoicePage() {
                         setPaidAmount(total);
                         setJobStatus('Fully Paid');
                       }}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-600 hover:text-white transition-colors"
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-600 hover:text-white transition-colors min-h-[32px]"
                     >
                       100% Full
                     </button>
@@ -1049,7 +1142,7 @@ export default function NewInvoicePage() {
                         setPaidAmount(0);
                         setJobStatus('In Progress');
                       }}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 hover:bg-rose-600 hover:text-white transition-colors"
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 hover:bg-rose-600 hover:text-white transition-colors min-h-[32px]"
                     >
                       0% Udhar
                     </button>
@@ -1068,18 +1161,18 @@ export default function NewInvoicePage() {
                     }
                   }}
                   placeholder="Enter advance or cash amount"
-                  className="w-full px-3 py-2 bg-paper-light border border-warm-border rounded-lg text-sm font-bold text-status-success focus:border-teal focus:outline-none"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 bg-paper-light border border-warm-border rounded-xl text-base font-bold text-status-success focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
                 />
 
                 {/* Job Stage / Order Progress */}
-                <div className="space-y-1 pt-1">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
+                <div className="space-y-1.5 pt-2">
+                  <label className="block text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-light">
                     Job / Fitting Status
                   </label>
                   <select
                     value={jobStatus}
                     onChange={(e) => setJobStatus(e.target.value)}
-                    className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-1.5 text-xs font-semibold text-ink focus:border-teal focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-warm-border bg-paper-light px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-ink focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
                   >
                     <option value="Advance Received">Advance Received (Pending Fitting)</option>
                     <option value="In Progress">In Progress (Fitting on Site)</option>
@@ -1090,46 +1183,46 @@ export default function NewInvoicePage() {
 
                 {/* Remaining Udhar / Advance Credit Balance */}
                 {remaining < 0 ? (
-                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-emerald-900">Advance / Credit Balance:</span>
-                      <span className="font-bold text-emerald-950 text-sm">
+                      <span className="font-black text-emerald-950 text-base">
                         {formatCurrency(Math.abs(remaining))}
                       </span>
                     </div>
-                    <div className="text-[11px] text-emerald-800">
+                    <div className="text-xs text-emerald-800">
                       ✓ Customer has overpaid. Credit balance will be carried in client account.
                     </div>
                   </div>
                 ) : remaining === 0 ? (
-                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-emerald-900">Payment Balance:</span>
-                      <span className="font-bold text-emerald-950 text-sm">Cleared (Rs. 0)</span>
+                      <span className="font-black text-emerald-950 text-base">Cleared (Rs. 0)</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs space-y-1">
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs sm:text-sm space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-amber-900">Remaining Udhar:</span>
-                      <span className="font-bold text-amber-950 text-sm">
+                      <span className="font-black text-amber-950 text-base">
                         {formatCurrency(remaining)}
                       </span>
                     </div>
-                    <div className="text-[11px] text-amber-800">
+                    <div className="text-xs text-amber-800">
                       ⚡ Persistent Reminder: Client will remain flagged in Debt Alerts until fully cleared.
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-light">
                     Payment Method
                   </label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-xs text-ink focus:border-teal focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-warm-border bg-paper-light px-3.5 py-2.5 text-xs sm:text-sm text-ink focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
                   >
                     <option value="Cash">Cash</option>
                     <option value="Bank Transfer (Online)">Bank Transfer (Online)</option>
@@ -1152,11 +1245,11 @@ export default function NewInvoicePage() {
 
               <Button
                 variant="teal"
-                className="w-full mt-4"
+                className="w-full mt-5 shadow-warm"
                 size="lg"
                 onClick={handleSubmitInvoice}
                 isLoading={submitting}
-                leftIcon={<Save className="w-4 h-4" />}
+                leftIcon={<Save className="w-5 h-5" />}
               >
                 Save &amp; Generate Bill
               </Button>
@@ -1177,11 +1270,11 @@ export default function NewInvoicePage() {
             <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
               Party Type
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setNewCustType('customer')}
-                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                className={`min-h-[44px] py-2.5 px-4 rounded-xl text-sm font-bold border transition-all ${
                   newCustType === 'customer'
                     ? 'bg-teal text-white border-teal shadow-warm'
                     : 'bg-paper text-ink-muted border-warm-border hover:text-ink'
@@ -1192,7 +1285,7 @@ export default function NewInvoicePage() {
               <button
                 type="button"
                 onClick={() => setNewCustType('supplier')}
-                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                className={`min-h-[44px] py-2.5 px-4 rounded-xl text-sm font-bold border transition-all ${
                   newCustType === 'supplier'
                     ? 'bg-brass-dark text-white border-brass-dark shadow-warm'
                     : 'bg-paper text-ink-muted border-warm-border hover:text-ink'
@@ -1231,6 +1324,7 @@ export default function NewInvoicePage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               onClick={() => setIsAddCustomerOpen(false)}
             >
               Cancel
@@ -1238,6 +1332,7 @@ export default function NewInvoicePage() {
             <Button
               type="submit"
               variant="teal"
+              size="md"
               isLoading={custLoading}
             >
               Create {newCustType === 'supplier' ? 'Supplier' : 'Customer'}

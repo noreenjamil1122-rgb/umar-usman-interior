@@ -129,19 +129,20 @@ export default function StaffPage() {
   return (
     <AppShell title="Staff & Workers">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             Staff &amp; Worker Accounts
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
             Manage worker credentials and role permissions for Umar Usman Interior
           </p>
         </div>
 
         <Button
           variant="teal"
-          size="sm"
+          size="md"
+          className="min-h-[42px] sm:min-h-[44px]"
           onClick={() => setIsOpen(true)}
           leftIcon={<UserPlus className="w-4 h-4" />}
         >
@@ -150,18 +151,18 @@ export default function StaffPage() {
       </div>
 
       {/* Role Permissions Information Banner */}
-      <div className="mb-6 p-4 rounded-xl bg-teal-subtle/50 border border-teal/20 text-xs text-ink space-y-2">
-        <div className="flex items-center gap-2 font-bold text-teal text-sm">
-          <ShieldCheck className="w-4 h-4" />
+      <div className="mb-6 sm:mb-8 p-5 rounded-2xl bg-teal-subtle/50 border border-teal/20 text-xs sm:text-sm text-ink space-y-2.5 shadow-warm">
+        <div className="flex items-center gap-2 font-bold text-teal text-sm sm:text-base">
+          <ShieldCheck className="w-5 h-5" />
           <span>Role-Based Access Control (RBAC) Rules</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-ink-muted">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-ink-muted text-xs sm:text-sm leading-relaxed">
           <div>
-            <span className="font-semibold text-ink">Admin Authority: </span>
+            <span className="font-bold text-ink">Admin Authority: </span>
             Full access to Master Catalog, Warehouses, Staff Management, Settings, financial reports, and the exclusive right to edit/delete invoices.
           </div>
           <div>
-            <span className="font-semibold text-ink">Worker Permissions: </span>
+            <span className="font-bold text-ink">Worker Permissions: </span>
             Can create invoices with advance payment, register customers, and check stock. Workers <strong className="text-status-danger">cannot</strong> edit or delete saved invoices, nor alter system configurations.
           </div>
         </div>
@@ -171,20 +172,21 @@ export default function StaffPage() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-16 text-center text-xs text-ink-muted flex items-center justify-center">
-              <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+            <div className="py-20 text-center text-sm text-ink-muted flex items-center justify-center">
+              <RefreshCw className="w-6 h-6 animate-spin text-teal mr-2" />
               Loading staff accounts...
             </div>
           ) : workers.length === 0 ? (
             <div className="py-16 text-center text-ink-muted space-y-3">
               <Users className="w-12 h-12 mx-auto text-ink-muted/40" />
               <div className="text-base font-semibold text-ink">No workers registered yet</div>
-              <p className="text-xs max-w-sm mx-auto">
+              <p className="text-xs sm:text-sm max-w-sm mx-auto">
                 Create worker accounts so your shop employees can bill clients and record advance payments on laptops or phones.
               </p>
               <Button
                 variant="teal"
-                size="sm"
+                size="md"
+                className="min-h-[42px]"
                 onClick={() => setIsOpen(true)}
                 leftIcon={<UserPlus className="w-4 h-4" />}
               >
@@ -193,43 +195,43 @@ export default function StaffPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                   <tr>
-                    <th className="py-3 px-4">Worker Name</th>
-                    <th className="py-3 px-4">Email Login</th>
-                    <th className="py-3 px-4">Role</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Registered Date</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4">Worker Name</th>
+                    <th className="py-3.5 px-4">Email Login</th>
+                    <th className="py-3.5 px-4">Role</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Registered Date</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
                   {workers.map((w) => (
                     <tr key={w._id} className="hover:bg-paper transition-colors">
-                      <td className="py-3 px-4 font-bold text-ink flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-teal-subtle text-teal font-bold flex items-center justify-center text-xs">
+                      <td className="py-4 px-4 font-bold text-ink flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-teal-subtle text-teal font-bold flex items-center justify-center text-xs">
                           {w.name.charAt(0).toUpperCase()}
                         </div>
                         <span>{w.name}</span>
                       </td>
-                      <td className="py-3 px-4 text-ink-muted font-mono">{w.email}</td>
-                      <td className="py-3 px-4">
-                        <Badge variant="teal" size="sm">Worker Staff</Badge>
+                      <td className="py-4 px-4 text-ink-muted font-mono">{w.email}</td>
+                      <td className="py-4 px-4">
+                        <Badge variant="teal" size="md">Worker Staff</Badge>
                       </td>
-                      <td className="py-3 px-4">
-                        <Badge variant="success" size="sm">Active</Badge>
+                      <td className="py-4 px-4">
+                        <Badge variant="success" size="md">Active</Badge>
                       </td>
-                      <td className="py-3 px-4 text-ink-muted">{formatDate(w.createdAt)}</td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-4 px-4 text-ink-muted">{formatDate(w.createdAt)}</td>
+                      <td className="py-4 px-4 text-right">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 text-xs text-status-danger hover:bg-status-dangerLight"
+                          className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
                           onClick={() => handleDeleteWorker(w)}
                           title="Remove worker account"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </td>
                     </tr>

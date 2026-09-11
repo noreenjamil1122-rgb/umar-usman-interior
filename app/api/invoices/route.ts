@@ -12,6 +12,16 @@ import { generateFormattedCode } from '@/lib/counters';
 import { roundMoney } from '@/lib/utils';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
 
+import {
+  buildPhoneRegex,
+  buildNameRegex,
+  buildInvoiceNumberRegex,
+  buildWpNumberRegex,
+  escapeRegex,
+  scoreInvoiceMatch,
+  SearchableInvoice,
+} from '@/lib/searchUtils';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession(request);
@@ -28,39 +38,109 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('customerId');
     const status = searchParams.get('status'); // 'paid', 'partial', 'unpaid'
     const partyType = searchParams.get('partyType'); // 'customer' | 'supplier'
-    const limit = Math.min(Number(searchParams.get('limit')) || 50, 100);
+    const limit = Math.min(Number(searchParams.get('limit')) || (search.trim() ? 100 : 50), 200);
 
-    const query: Record<string, unknown> = { userId: userObjectId };
+    const andConditions: Record<string, unknown>[] = [{ userId: userObjectId }];
+    const trimmedSearch = search.trim();
 
-    if (search.trim()) {
-      query.number = { $regex: search.trim(), $options: 'i' };
+    // 1. Search matching customer IDs if search query is present
+    let matchingCustomerIds: mongoose.Types.ObjectId[] = [];
+    if (trimmedSearch) {
+      const phoneRegex = buildPhoneRegex(trimmedSearch);
+      const nameRegex = buildNameRegex(trimmedSearch);
+      const textRegex = { $regex: escapeRegex(trimmedSearch), $options: 'i' };
+
+      const customerConditions: Record<string, unknown>[] = [
+        { name: nameRegex },
+        { code: textRegex },
+        { city: textRegex },
+      ];
+
+      if (phoneRegex) {
+        customerConditions.push({ mobile: phoneRegex });
+        customerConditions.push({ whatsapp: phoneRegex });
+      } else {
+        customerConditions.push({ mobile: textRegex });
+      }
+
+      const custQuery: Record<string, unknown> = {
+        userId: userObjectId,
+        $or: customerConditions,
+      };
+
+      if (partyType === 'supplier') {
+        custQuery.type = 'supplier';
+      } else if (partyType === 'customer') {
+        custQuery.type = { $ne: 'supplier' };
+      }
+
+      const matchedCustomers = await Customer.find(custQuery).select('_id').lean();
+      matchingCustomerIds = matchedCustomers.map((c) => c._id as mongoose.Types.ObjectId);
     }
 
+    // 2. Filter by customerId or partyType
     if (customerId) {
-      query.customerId = new mongoose.Types.ObjectId(customerId);
+      andConditions.push({ customerId: new mongoose.Types.ObjectId(customerId) });
     } else if (partyType) {
       const supplierCustomers = await Customer.find({ userId: userObjectId, type: 'supplier' }).select('_id').lean();
       const supplierIds = supplierCustomers.map((c) => c._id);
       if (partyType === 'supplier') {
-        query.customerId = { $in: supplierIds };
+        andConditions.push({ customerId: { $in: supplierIds } });
       } else {
-        query.customerId = { $nin: supplierIds };
+        andConditions.push({ customerId: { $nin: supplierIds } });
       }
     }
 
+    // 3. Status filter
     if (status === 'paid') {
-      query.remaining = { $lte: 0 };
+      andConditions.push({ remaining: { $lte: 0 } });
     } else if (status === 'unpaid') {
-      query.$expr = { $eq: ['$paid', 0] };
+      andConditions.push({ $expr: { $eq: ['$paid', 0] } });
     } else if (status === 'partial') {
-      query.$and = [{ paid: { $gt: 0 } }, { remaining: { $gt: 0 } }];
+      andConditions.push({ paid: { $gt: 0 }, remaining: { $gt: 0 } });
     }
+
+    // 4. Combined Search query across invoice number, customer IDs, and wallpaper WP items
+    if (trimmedSearch) {
+      const invNumRegex = buildInvoiceNumberRegex(trimmedSearch);
+      const wpRegex = buildWpNumberRegex(trimmedSearch);
+      const textRegex = { $regex: escapeRegex(trimmedSearch), $options: 'i' };
+
+      const searchOrConditions: Record<string, unknown>[] = [
+        { number: invNumRegex },
+        { 'items.wp': wpRegex },
+        { 'items.design': textRegex },
+      ];
+
+      if (matchingCustomerIds.length > 0) {
+        searchOrConditions.push({ customerId: { $in: matchingCustomerIds } });
+      }
+
+      andConditions.push({ $or: searchOrConditions });
+    }
+
+    const query = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
 
     const invoices = await Invoice.find(query)
       .populate('customerId', 'name mobile code city type')
       .sort({ date: -1, createdAt: -1 })
       .limit(limit)
       .lean();
+
+    // 5. Rank by exact/strongest match relevance if search query was provided
+    if (trimmedSearch && invoices.length > 1) {
+      (invoices as unknown as SearchableInvoice[]).sort((a, b) => {
+        const scoreA = scoreInvoiceMatch(a, trimmedSearch);
+        const scoreB = scoreInvoiceMatch(b, trimmedSearch);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        // Fallback to date descending
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        return dateB - dateA;
+      });
+    }
 
     return NextResponse.json({
       success: true,

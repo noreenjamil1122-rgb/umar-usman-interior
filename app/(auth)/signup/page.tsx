@@ -65,7 +65,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-paper">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-lg">
         {/* Brand Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white p-2 shadow-warm-md mb-3 border border-warm-border">
@@ -75,28 +75,29 @@ export default function SignupPage() {
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-ink tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             Umar Usman Interior
           </h1>
-          <p className="text-sm text-ink-muted mt-0.5 font-medium">
+          <p className="text-sm text-ink-muted mt-1 font-medium">
             Wallpaper Manager • Lahore
           </p>
         </div>
 
         {/* Signup Card */}
-        <Card variant="elevated" className="border-t-4 border-t-brass bg-paper-light">
-          <CardContent className="pt-2">
+        <Card variant="elevated" className="border-t-4 border-t-brass bg-paper-light p-6 sm:p-8 rounded-3xl shadow-warm-lg">
+          <CardContent className="p-0">
             <div className="mb-6">
-              <h2 className="text-lg font-bold text-ink">Create Account</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-ink">Create Account</h2>
+              <p className="text-xs sm:text-sm text-ink-muted mt-1">Register your interior design company and start managing stock</p>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-status-dangerLight border border-rose-200 text-status-danger text-xs font-medium">
+              <div className="mb-5 p-3.5 rounded-xl bg-status-dangerLight border border-rose-200 text-status-danger text-xs sm:text-sm font-medium">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               <Input
                 label="Business Name"
                 type="text"
@@ -146,17 +147,17 @@ export default function SignupPage() {
               </div>
 
               {/* Automatic Provisioning Checklist */}
-              <div className="p-3 rounded-lg bg-paper border border-warm-border space-y-1.5 text-xs text-ink-muted">
-                <div className="flex items-center gap-1.5 text-status-success font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <div className="p-4 rounded-2xl bg-paper border border-warm-border space-y-2 text-xs sm:text-sm text-ink-muted">
+                <div className="flex items-center gap-2 text-status-success font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Auto-seeds 3 Wallpaper Catalog Books</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-status-success font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center gap-2 text-status-success font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Auto-seeds 5 Default Warehouses</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-status-success font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center gap-2 text-status-success font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Initializes Atomic Counters &amp; Isolated Ledger</span>
                 </div>
               </div>
@@ -164,10 +165,10 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 variant="brass"
-                className="w-full mt-2"
+                className="w-full mt-3 min-h-[50px] sm:min-h-[54px] text-base font-bold shadow-warm"
                 size="lg"
                 isLoading={loading}
-                leftIcon={<UserPlus className="w-4 h-4" />}
+                leftIcon={<UserPlus className="w-5 h-5" />}
               >
                 Register &amp; Launch
               </Button>

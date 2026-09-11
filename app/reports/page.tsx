@@ -112,12 +112,12 @@ export default function ReportsPage() {
   return (
     <AppShell title="Business Reports">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-            Financial &amp; Inventory Reports
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
+            Financial &amp; Stock Reports
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
             Auditing, sales performance, cash collections, and stock valuation
           </p>
         </div>
@@ -125,7 +125,8 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="brass"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={printCurrentReport}
             leftIcon={<Printer className="w-4 h-4" />}
           >
@@ -135,33 +136,33 @@ export default function ReportsPage() {
       </div>
 
       {/* Date Range Selector */}
-      <Card className="mb-6 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap text-xs">
-            <span className="font-semibold text-ink-muted">Date Range:</span>
+      <Card className="mb-6 sm:mb-8 p-5 rounded-2xl shadow-warm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 flex-wrap text-xs sm:text-sm">
+            <span className="font-bold text-ink-muted">Date Range:</span>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-2.5 py-1 text-xs bg-paper border border-warm-border rounded-lg text-ink font-medium focus:outline-none focus:border-teal"
+              className="px-3 py-2 text-xs sm:text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal min-h-[40px]"
             />
-            <span className="text-ink-muted">to</span>
+            <span className="text-ink-muted font-medium">to</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-2.5 py-1 text-xs bg-paper border border-warm-border rounded-lg text-ink font-medium focus:outline-none focus:border-teal"
+              className="px-3 py-2 text-xs sm:text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal min-h-[40px]"
             />
           </div>
 
-          <div className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-2 text-xs sm:text-sm flex-wrap">
             <button
               onClick={() => {
                 const today = new Date().toISOString().split('T')[0];
                 setStartDate(today);
                 setEndDate(today);
               }}
-              className="px-2.5 py-1 rounded-md bg-paper border border-warm-border text-ink-muted hover:text-ink font-medium"
+              className="px-3.5 py-2 rounded-xl bg-paper border border-warm-border text-ink-muted hover:text-ink font-bold min-h-[38px] transition-colors"
             >
               Today
             </button>
@@ -172,7 +173,7 @@ export default function ReportsPage() {
                 setStartDate(d.toISOString().split('T')[0]);
                 setEndDate(new Date().toISOString().split('T')[0]);
               }}
-              className="px-2.5 py-1 rounded-md bg-paper border border-warm-border text-ink-muted hover:text-ink font-medium"
+              className="px-3.5 py-2 rounded-xl bg-paper border border-warm-border text-ink-muted hover:text-ink font-bold min-h-[38px] transition-colors"
             >
               Last 7 Days
             </button>
@@ -183,7 +184,7 @@ export default function ReportsPage() {
                 setStartDate(d.toISOString().split('T')[0]);
                 setEndDate(new Date().toISOString().split('T')[0]);
               }}
-              className="px-2.5 py-1 rounded-md bg-paper border border-warm-border text-ink-muted hover:text-ink font-medium"
+              className="px-3.5 py-2 rounded-xl bg-paper border border-warm-border text-ink-muted hover:text-ink font-bold min-h-[38px] transition-colors"
             >
               Last 30 Days
             </button>
@@ -192,7 +193,7 @@ export default function ReportsPage() {
       </Card>
 
       {/* 7 Report Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-6 border-b border-warm-border">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2.5 mb-6 sm:mb-8 border-b border-warm-border">
         {[
           { id: 'sales', label: '1. Sales Summary', icon: TrendingUp },
           { id: 'customers', label: '2. Customer Accounts', icon: Users },
@@ -208,13 +209,13 @@ export default function ReportsPage() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id as any)}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 min-h-[42px] ${
                 isActive
                   ? 'bg-teal text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-4 h-4" />
               <span>{t.label}</span>
             </button>
           );
@@ -222,35 +223,35 @@ export default function ReportsPage() {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-xs text-ink-muted flex items-center justify-center">
-          <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+        <div className="py-20 text-center text-sm text-ink-muted flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 animate-spin text-teal mr-2" />
           Aggregating reporting metrics...
         </div>
       ) : (
         <>
           {/* TAB 1: SALES REPORT */}
           {activeTab === 'sales' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="p-4 bg-paper border border-warm-border">
-                  <div className="text-[11px] font-semibold uppercase text-ink-muted">Total Sales Invoiced</div>
-                  <div className="text-xl font-bold text-ink mt-1">{formatCurrency(totalSalesBilled)}</div>
-                  <div className="text-[10px] text-ink-muted mt-0.5">{filteredInvoices.length} invoices</div>
+            <div className="space-y-6 sm:space-y-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <Card className="p-5 sm:p-6 bg-paper border border-warm-border rounded-2xl shadow-warm">
+                  <div className="text-xs font-bold uppercase text-ink-muted tracking-wider">Total Sales Invoiced</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">{formatCurrency(totalSalesBilled)}</div>
+                  <div className="text-xs text-ink-muted mt-1">{filteredInvoices.length} invoices</div>
                 </Card>
-                <Card className="p-4 bg-paper border border-warm-border">
-                  <div className="text-[11px] font-semibold uppercase text-ink-muted">Payments Received</div>
-                  <div className="text-xl font-bold text-status-success mt-1">{formatCurrency(totalSalesPaid)}</div>
-                  <div className="text-[10px] text-ink-muted mt-0.5">Cash &amp; bank deposits</div>
+                <Card className="p-5 sm:p-6 bg-paper border border-warm-border rounded-2xl shadow-warm">
+                  <div className="text-xs font-bold uppercase text-ink-muted tracking-wider">Payments Received</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-status-success mt-1.5">{formatCurrency(totalSalesPaid)}</div>
+                  <div className="text-xs text-ink-muted mt-1">Cash &amp; bank deposits</div>
                 </Card>
-                <Card className="p-4 bg-paper border border-warm-border">
-                  <div className="text-[11px] font-semibold uppercase text-ink-muted">Uncollected Udhar</div>
-                  <div className="text-xl font-bold text-status-danger mt-1">{formatCurrency(totalSalesRemaining)}</div>
-                  <div className="text-[10px] text-ink-muted mt-0.5">Pending collection</div>
+                <Card className="p-5 sm:p-6 bg-paper border border-warm-border rounded-2xl shadow-warm">
+                  <div className="text-xs font-bold uppercase text-ink-muted tracking-wider">Uncollected Udhar</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-status-danger mt-1.5">{formatCurrency(totalSalesRemaining)}</div>
+                  <div className="text-xs text-ink-muted mt-1">Pending collection</div>
                 </Card>
-                <Card className="p-4 bg-paper border border-warm-border">
-                  <div className="text-[11px] font-semibold uppercase text-ink-muted">Rolls Dispatched</div>
-                  <div className="text-xl font-bold text-teal mt-1">{totalRollsSold.toLocaleString()} rolls</div>
-                  <div className="text-[10px] text-ink-muted mt-0.5">Wallpaper volume</div>
+                <Card className="p-5 sm:p-6 bg-paper border border-warm-border rounded-2xl shadow-warm">
+                  <div className="text-xs font-bold uppercase text-ink-muted tracking-wider">Rolls Dispatched</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-teal mt-1.5">{totalRollsSold.toLocaleString()} rolls</div>
+                  <div className="text-xs text-ink-muted mt-1">Wallpaper volume</div>
                 </Card>
               </div>
 
@@ -259,34 +260,34 @@ export default function ReportsPage() {
                   <CardTitle>Sales Invoices In Period</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                       <tr>
-                        <th className="py-2.5 px-4">Invoice #</th>
-                        <th className="py-2.5 px-4">Customer</th>
-                        <th className="py-2.5 px-4">Date</th>
-                        <th className="py-2.5 px-4 text-right">Total</th>
-                        <th className="py-2.5 px-4 text-right">Paid</th>
-                        <th className="py-2.5 px-4 text-right">Balance</th>
+                        <th className="py-3.5 px-4">Invoice #</th>
+                        <th className="py-3.5 px-4">Customer</th>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4 text-right">Total</th>
+                        <th className="py-3.5 px-4 text-right">Paid</th>
+                        <th className="py-3.5 px-4 text-right">Balance</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-warm-borderLight">
                       {filteredInvoices.map((inv) => (
-                        <tr key={inv._id}>
-                          <td className="py-2.5 px-4 font-mono font-bold text-teal">
+                        <tr key={inv._id} className="hover:bg-paper transition-colors">
+                          <td className="py-4 px-4 font-mono font-bold text-teal">
                             <Link href={`/invoices/${inv._id}`} className="hover:underline">
                               {inv.number}
                             </Link>
                           </td>
-                          <td className="py-2.5 px-4 font-semibold text-ink">{inv.customerId?.name || 'Walk-in'}</td>
-                          <td className="py-2.5 px-4 text-ink-muted">{formatDate(inv.date)}</td>
-                          <td className="py-2.5 px-4 text-right font-bold text-ink">{formatCurrency(inv.total)}</td>
-                          <td className="py-2.5 px-4 text-right text-status-success font-medium">{formatCurrency(inv.paid)}</td>
-                          <td className="py-2.5 px-4 text-right font-bold">
+                          <td className="py-4 px-4 font-semibold text-ink">{inv.customerId?.name || 'Walk-in'}</td>
+                          <td className="py-4 px-4 text-ink-muted">{formatDate(inv.date)}</td>
+                          <td className="py-4 px-4 text-right font-bold text-ink">{formatCurrency(inv.total)}</td>
+                          <td className="py-4 px-4 text-right text-status-success font-semibold">{formatCurrency(inv.paid)}</td>
+                          <td className="py-4 px-4 text-right font-bold">
                             {inv.remaining > 0 ? (
                               <span className="text-status-danger">{formatCurrency(inv.remaining)}</span>
                             ) : (
-                              <span className="text-ink-muted">Cleared</span>
+                              <span className="text-ink-muted font-medium">Cleared</span>
                             )}
                           </td>
                         </tr>
@@ -306,30 +307,30 @@ export default function ReportsPage() {
                 <CardDescription>All registered customers and business volume</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                     <tr>
-                      <th className="py-2.5 px-4">Code</th>
-                      <th className="py-2.5 px-4">Customer</th>
-                      <th className="py-2.5 px-4">Contact</th>
-                      <th className="py-2.5 px-4">City</th>
-                      <th className="py-2.5 px-4 text-right">Total Purchased</th>
-                      <th className="py-2.5 px-4 text-right">Current Udhar</th>
+                      <th className="py-3.5 px-4">Code</th>
+                      <th className="py-3.5 px-4">Customer</th>
+                      <th className="py-3.5 px-4">Contact</th>
+                      <th className="py-3.5 px-4">City</th>
+                      <th className="py-3.5 px-4 text-right">Total Purchased</th>
+                      <th className="py-3.5 px-4 text-right">Current Udhar</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {customers.map((c) => (
-                      <tr key={c._id}>
-                        <td className="py-2.5 px-4 font-mono font-bold text-teal">{c.code}</td>
-                        <td className="py-2.5 px-4 font-semibold text-ink">
+                      <tr key={c._id} className="hover:bg-paper transition-colors">
+                        <td className="py-4 px-4 font-mono font-bold text-teal">{c.code}</td>
+                        <td className="py-4 px-4 font-semibold text-ink">
                           <Link href={`/customers/${c._id}`} className="hover:underline">
                             {c.name}
                           </Link>
                         </td>
-                        <td className="py-2.5 px-4 text-ink-muted">{c.mobile}</td>
-                        <td className="py-2.5 px-4 text-ink-muted">{c.city || 'Lahore'}</td>
-                        <td className="py-2.5 px-4 text-right font-bold text-ink">{formatCurrency(c.totalPurchase || 0)}</td>
-                        <td className="py-2.5 px-4 text-right font-bold">
+                        <td className="py-4 px-4 text-ink-muted">{c.mobile}</td>
+                        <td className="py-4 px-4 text-ink-muted">{c.city || 'Lahore'}</td>
+                        <td className="py-4 px-4 text-right font-bold text-ink">{formatCurrency(c.totalPurchase || 0)}</td>
+                        <td className="py-4 px-4 text-right font-bold">
                           {(c.outstandingBalance || 0) > 0 ? (
                             <span className="text-status-danger">{formatCurrency(c.outstandingBalance)}</span>
                           ) : (
@@ -346,45 +347,45 @@ export default function ReportsPage() {
 
           {/* TAB 3: OUTSTANDING UDHAR REPORT */}
           {activeTab === 'outstanding' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+            <div className="space-y-5 sm:space-y-6">
+              <div className="p-5 sm:p-6 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between shadow-warm">
                 <div>
-                  <div className="text-xs uppercase font-bold text-red-900">Total Unpaid Udhar Balance</div>
-                  <div className="text-2xl font-black text-status-danger mt-0.5">
+                  <div className="text-xs uppercase font-bold text-red-900 tracking-wider">Total Unpaid Udhar Balance</div>
+                  <div className="text-2xl sm:text-3xl font-black text-status-danger mt-1">
                     {formatCurrency(totalOutstandingUdhar)}
                   </div>
                 </div>
-                <div className="text-right text-xs text-red-800 font-semibold">
+                <div className="text-right text-xs sm:text-sm text-red-800 font-bold">
                   {outstandingDebtors.length} debtors with active debt
                 </div>
               </div>
 
               <Card>
                 <CardContent className="p-0">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                       <tr>
-                        <th className="py-2.5 px-4">Code</th>
-                        <th className="py-2.5 px-4">Debtor Name</th>
-                        <th className="py-2.5 px-4">Phone</th>
-                        <th className="py-2.5 px-4">Address</th>
-                        <th className="py-2.5 px-4 text-right">Outstanding (Udhar)</th>
-                        <th className="py-2.5 px-4 text-right">Action</th>
+                        <th className="py-3.5 px-4">Code</th>
+                        <th className="py-3.5 px-4">Debtor Name</th>
+                        <th className="py-3.5 px-4">Phone</th>
+                        <th className="py-3.5 px-4">Address</th>
+                        <th className="py-3.5 px-4 text-right">Outstanding (Udhar)</th>
+                        <th className="py-3.5 px-4 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-warm-borderLight">
                       {outstandingDebtors.map((c) => (
-                        <tr key={c._id}>
-                          <td className="py-2.5 px-4 font-mono font-bold text-teal">{c.code}</td>
-                          <td className="py-2.5 px-4 font-bold text-ink">{c.name}</td>
-                          <td className="py-2.5 px-4 text-ink-muted">{c.mobile}</td>
-                          <td className="py-2.5 px-4 text-ink-muted">{c.address || c.city || 'Lahore'}</td>
-                          <td className="py-2.5 px-4 text-right font-black text-status-danger">
+                        <tr key={c._id} className="hover:bg-paper transition-colors">
+                          <td className="py-4 px-4 font-mono font-bold text-teal">{c.code}</td>
+                          <td className="py-4 px-4 font-bold text-ink">{c.name}</td>
+                          <td className="py-4 px-4 text-ink-muted">{c.mobile}</td>
+                          <td className="py-4 px-4 text-ink-muted">{c.address || c.city || 'Lahore'}</td>
+                          <td className="py-4 px-4 text-right font-black text-status-danger text-sm sm:text-base">
                             {formatCurrency(c.outstandingBalance)}
                           </td>
-                          <td className="py-2.5 px-4 text-right">
+                          <td className="py-4 px-4 text-right">
                             <Link href={`/customers/${c._id}`}>
-                              <Button variant="outline" size="sm" className="h-6 text-[11px]">
+                              <Button variant="outline" size="sm" className="min-h-[34px] text-xs font-semibold px-3">
                                 Ledger
                               </Button>
                             </Link>
@@ -414,26 +415,26 @@ export default function ReportsPage() {
 
               <Card>
                 <CardContent className="p-0">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                       <tr>
-                        <th className="py-2.5 px-4">WP#</th>
-                        <th className="py-2.5 px-4">Design</th>
-                        <th className="py-2.5 px-4">Book</th>
-                        <th className="py-2.5 px-4 text-center">In Stock</th>
-                        <th className="py-2.5 px-4 text-right">Unit Price</th>
-                        <th className="py-2.5 px-4 text-right">Total Value</th>
+                        <th className="py-3.5 px-4">WP#</th>
+                        <th className="py-3.5 px-4">Design</th>
+                        <th className="py-3.5 px-4">Book</th>
+                        <th className="py-3.5 px-4 text-center">In Stock</th>
+                        <th className="py-3.5 px-4 text-right">Unit Price</th>
+                        <th className="py-3.5 px-4 text-right">Total Value</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-warm-borderLight">
                       {products.map((p) => (
-                        <tr key={p._id}>
-                          <td className="py-2.5 px-4 font-mono font-bold text-teal">{p.wp}</td>
-                          <td className="py-2.5 px-4 font-semibold text-ink">{p.design}</td>
-                          <td className="py-2.5 px-4 text-ink-muted">{p.bookId?.name || '-'}</td>
-                          <td className="py-2.5 px-4 text-center font-bold">{p.stock} rolls</td>
-                          <td className="py-2.5 px-4 text-right font-medium text-ink">{formatCurrency(p.salePrice)}</td>
-                          <td className="py-2.5 px-4 text-right font-bold text-ink">
+                        <tr key={p._id} className="hover:bg-paper transition-colors">
+                          <td className="py-4 px-4 font-mono font-bold text-teal">WP {p.wp}</td>
+                          <td className="py-4 px-4 font-semibold text-ink">{p.design}</td>
+                          <td className="py-4 px-4 text-ink-muted">{p.bookId?.name || '-'}</td>
+                          <td className="py-4 px-4 text-center font-bold">{p.stock} rolls</td>
+                          <td className="py-4 px-4 text-right font-medium text-ink">{formatCurrency(p.salePrice)}</td>
+                          <td className="py-4 px-4 text-right font-bold text-ink">
                             {formatCurrency(p.stock * (p.purchasePrice || p.salePrice || 0))}
                           </td>
                         </tr>
@@ -453,32 +454,32 @@ export default function ReportsPage() {
                 <CardDescription>Wallpapers requiring supplier re-orders</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                     <tr>
-                      <th className="py-2.5 px-4">WP#</th>
-                      <th className="py-2.5 px-4">Design</th>
-                      <th className="py-2.5 px-4">Book</th>
-                      <th className="py-2.5 px-4">Warehouse</th>
-                      <th className="py-2.5 px-4 text-center">Remaining</th>
-                      <th className="py-2.5 px-4 text-center">Status</th>
+                      <th className="py-3.5 px-4">WP#</th>
+                      <th className="py-3.5 px-4">Design</th>
+                      <th className="py-3.5 px-4">Book</th>
+                      <th className="py-3.5 px-4">Warehouse</th>
+                      <th className="py-3.5 px-4 text-center">Remaining</th>
+                      <th className="py-3.5 px-4 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {lowStockProducts.map((p) => (
-                      <tr key={p._id}>
-                        <td className="py-2.5 px-4 font-mono font-bold text-teal">{p.wp}</td>
-                        <td className="py-2.5 px-4 font-semibold text-ink">{p.design}</td>
-                        <td className="py-2.5 px-4 text-ink-muted">{p.bookId?.name || '-'}</td>
-                        <td className="py-2.5 px-4 text-ink-muted">{p.warehouseId?.name || '-'}</td>
-                        <td className="py-2.5 px-4 text-center font-bold text-status-danger">{p.stock} rolls</td>
-                        <td className="py-2.5 px-4 text-center">
+                      <tr key={p._id} className="hover:bg-paper transition-colors">
+                        <td className="py-4 px-4 font-mono font-bold text-teal">WP {p.wp}</td>
+                        <td className="py-4 px-4 font-semibold text-ink">{p.design}</td>
+                        <td className="py-4 px-4 text-ink-muted">{p.bookId?.name || '-'}</td>
+                        <td className="py-4 px-4 text-ink-muted">{p.warehouseId?.name || '-'}</td>
+                        <td className="py-4 px-4 text-center font-bold text-status-danger">{p.stock} rolls</td>
+                        <td className="py-4 px-4 text-center">
                           {p.stock <= 0 ? (
-                            <span className="px-2 py-0.5 rounded bg-red-100 text-status-danger font-bold text-[10px]">
+                            <span className="px-2.5 py-1 rounded-lg bg-red-100 text-status-danger font-bold text-xs">
                               Depleted
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px]">
+                            <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-bold text-xs">
                               Reorder Soon
                             </span>
                           )}
@@ -499,24 +500,24 @@ export default function ReportsPage() {
                 <CardDescription>All incoming cash, bank, and online payments in period</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                     <tr>
-                      <th className="py-2.5 px-4">Date</th>
-                      <th className="py-2.5 px-4">Party</th>
-                      <th className="py-2.5 px-4">Method</th>
-                      <th className="py-2.5 px-4">Reference</th>
-                      <th className="py-2.5 px-4 text-right">Amount Collected</th>
+                      <th className="py-3.5 px-4">Date</th>
+                      <th className="py-3.5 px-4">Party</th>
+                      <th className="py-3.5 px-4">Method</th>
+                      <th className="py-3.5 px-4">Reference</th>
+                      <th className="py-3.5 px-4 text-right">Amount Collected</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {filteredPayments.map((p) => (
-                      <tr key={p._id}>
-                        <td className="py-2.5 px-4 text-ink-muted">{formatDate(p.date)}</td>
-                        <td className="py-2.5 px-4 font-semibold text-ink">{p.customerId?.name || '-'}</td>
-                        <td className="py-2.5 px-4 font-medium text-ink">{p.method}</td>
-                        <td className="py-2.5 px-4 text-ink-muted">{p.reference || '-'}</td>
-                        <td className="py-2.5 px-4 text-right font-bold text-status-success">
+                      <tr key={p._id} className="hover:bg-paper transition-colors">
+                        <td className="py-4 px-4 text-ink-muted">{formatDate(p.date)}</td>
+                        <td className="py-4 px-4 font-semibold text-ink">{p.customerId?.name || '-'}</td>
+                        <td className="py-4 px-4 font-medium text-ink">{p.method}</td>
+                        <td className="py-4 px-4 text-ink-muted">{p.reference || '-'}</td>
+                        <td className="py-4 px-4 text-right font-bold text-status-success text-sm sm:text-base">
                           {formatCurrency(p.amount)}
                         </td>
                       </tr>
@@ -535,50 +536,50 @@ export default function ReportsPage() {
                 <CardDescription>Billed invoices, payment status, and balance history</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                     <tr>
-                      <th className="py-2.5 px-4">Invoice #</th>
-                      <th className="py-2.5 px-4">Party</th>
-                      <th className="py-2.5 px-4">Date</th>
-                      <th className="py-2.5 px-4 text-right">Total Amount</th>
-                      <th className="py-2.5 px-4 text-right">Paid</th>
-                      <th className="py-2.5 px-4 text-right">Remaining</th>
-                      <th className="py-2.5 px-4 text-center">Status</th>
+                      <th className="py-3.5 px-4">Invoice #</th>
+                      <th className="py-3.5 px-4">Party</th>
+                      <th className="py-3.5 px-4">Date</th>
+                      <th className="py-3.5 px-4 text-right">Total Amount</th>
+                      <th className="py-3.5 px-4 text-right">Paid</th>
+                      <th className="py-3.5 px-4 text-right">Remaining</th>
+                      <th className="py-3.5 px-4 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
                     {filteredInvoices.map((inv) => (
-                      <tr key={inv._id}>
-                        <td className="py-2.5 px-4 font-mono font-bold text-teal">
+                      <tr key={inv._id} className="hover:bg-paper transition-colors">
+                        <td className="py-4 px-4 font-mono font-bold text-teal">
                           <Link href={`/invoices/${inv._id}`} className="hover:underline">
                             {inv.number}
                           </Link>
                         </td>
-                        <td className="py-2.5 px-4 font-semibold text-ink">{inv.customerId?.name || 'Walk-in'}</td>
-                        <td className="py-2.5 px-4 text-ink-muted">{formatDate(inv.date)}</td>
-                        <td className="py-2.5 px-4 text-right font-bold text-ink">{formatCurrency(inv.total)}</td>
-                        <td className="py-2.5 px-4 text-right text-status-success font-medium">{formatCurrency(inv.paid)}</td>
-                        <td className="py-2.5 px-4 text-right font-bold">
+                        <td className="py-4 px-4 font-semibold text-ink">{inv.customerId?.name || 'Walk-in'}</td>
+                        <td className="py-4 px-4 text-ink-muted">{formatDate(inv.date)}</td>
+                        <td className="py-4 px-4 text-right font-bold text-ink">{formatCurrency(inv.total)}</td>
+                        <td className="py-4 px-4 text-right text-status-success font-semibold">{formatCurrency(inv.paid)}</td>
+                        <td className="py-4 px-4 text-right font-bold">
                           {inv.remaining > 0 ? (
                             <span className="text-status-danger">{formatCurrency(inv.remaining)}</span>
                           ) : inv.remaining < 0 ? (
-                            <span className="text-status-success">Adv: {formatCurrency(Math.abs(inv.remaining))}</span>
+                            <span className="text-status-success font-semibold">Adv: {formatCurrency(Math.abs(inv.remaining))}</span>
                           ) : (
-                            <span className="text-ink-muted">Rs. 0</span>
+                            <span className="text-ink-muted font-medium">Rs. 0</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-4 text-center">
+                        <td className="py-4 px-4 text-center">
                           {inv.remaining <= 0 ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800">
                               Payment Complete
                             </span>
                           ) : inv.paid > 0 ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800">
                               Processing
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
+                            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-800">
                               Udhar
                             </span>
                           )}

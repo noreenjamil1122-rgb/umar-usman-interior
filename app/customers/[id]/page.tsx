@@ -304,40 +304,42 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   return (
     <AppShell title={customer ? `${customer.name} Profile` : 'Party Details'}>
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={() => router.push('/customers')}
             leftIcon={<ArrowLeft className="w-4 h-4" />}
           >
             All Parties
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
                 {customer?.name || 'Party'}
               </h1>
               {customer?.type === 'supplier' ? (
-                <Badge variant="brass" size="sm">Supplier</Badge>
+                <Badge variant="brass" size="md">Supplier</Badge>
               ) : (
-                <Badge variant="success" size="sm">Customer</Badge>
+                <Badge variant="success" size="md">Customer</Badge>
               )}
-              <span className="font-mono text-xs font-bold text-ink-muted">
+              <span className="font-mono text-xs sm:text-sm font-bold text-ink-muted">
                 {customer?.code}
               </span>
             </div>
-            <p className="text-xs text-ink-muted mt-0.5">
+            <p className="text-xs sm:text-sm text-ink-muted mt-1">
               Contact records, historical orders, receipts, and Udhar ledger
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={printStatementInNewTab}
             leftIcon={<Printer className="w-4 h-4" />}
           >
@@ -346,7 +348,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
           <Button
             variant="brass"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={handleOpenPaymentPrompt}
             leftIcon={<CreditCard className="w-4 h-4" />}
           >
@@ -354,85 +357,85 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
           </Button>
 
           <Link href={`/invoices/new?customerId=${params.id}`}>
-            <Button variant="teal" size="sm" leftIcon={<Plus className="w-4 h-4" />}>
+            <Button variant="teal" size="md" className="min-h-[42px] sm:min-h-[44px]" leftIcon={<Plus className="w-4 h-4" />}>
               New Invoice
             </Button>
           </Link>
 
-          <Button variant="outline" size="sm" onClick={handleOpenEdit} leftIcon={<Edit2 className="w-4 h-4" />}>
+          <Button variant="outline" size="md" className="min-h-[42px]" onClick={handleOpenEdit} leftIcon={<Edit2 className="w-4 h-4" />}>
             Edit
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-xs text-ink-muted flex items-center justify-center">
-          <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+        <div className="py-20 text-center text-sm text-ink-muted flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 animate-spin text-teal mr-2" />
           Loading party profile...
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 sm:space-y-8">
           {/* Summary Stat Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card className="p-4 border-l-4 border-l-teal">
-              <div className="text-xs font-semibold text-ink-muted uppercase">Total Purchase</div>
-              <div className="text-xl font-bold text-ink mt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
+            <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-teal">
+              <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Total Purchase</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">
                 {formatCurrency(stats.totalInvoiced)}
               </div>
-              <div className="text-[11px] text-ink-muted mt-0.5">
+              <div className="text-xs text-ink-muted mt-1">
                 {invoices.length} billing invoice(s)
               </div>
             </Card>
 
-            <Card className="p-4 border-l-4 border-l-emerald-600">
-              <div className="text-xs font-semibold text-ink-muted uppercase">Total Paid</div>
-              <div className="text-xl font-bold text-emerald-700 mt-1">
+            <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-emerald-600">
+              <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Total Paid</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 mt-1.5">
                 {formatCurrency(stats.totalPaid)}
               </div>
-              <div className="text-[11px] text-ink-muted mt-0.5">
+              <div className="text-xs text-ink-muted mt-1">
                 {payments.length} payment voucher(s)
               </div>
             </Card>
 
-            <Card className={`p-4 border-l-4 ${stats.outstandingBalance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}`}>
-              <div className="text-xs font-semibold text-ink-muted uppercase">Remaining Balance</div>
-              <div className={`text-xl font-bold mt-1 ${stats.outstandingBalance > 0 ? 'text-status-danger' : 'text-status-success'}`}>
+            <Card className={`p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 ${stats.outstandingBalance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}`}>
+              <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Remaining Balance</div>
+              <div className={`text-2xl sm:text-3xl font-black mt-1.5 ${stats.outstandingBalance > 0 ? 'text-status-danger' : 'text-status-success'}`}>
                 {stats.outstandingBalance > 0
                   ? formatCurrency(stats.outstandingBalance)
                   : stats.outstandingBalance < 0
                     ? `Advance ${formatCurrency(Math.abs(stats.outstandingBalance))}`
                     : 'Clear (0)'}
               </div>
-              <div className="text-[11px] text-ink-muted mt-0.5">
+              <div className="text-xs text-ink-muted mt-1">
                 {stats.outstandingBalance > 0 ? 'Udhar recovery pending' : 'No balance due'}
               </div>
             </Card>
 
-            <Card className="p-4">
-              <div className="text-xs font-semibold text-ink-muted uppercase">Contact &amp; City</div>
-              <div className="text-sm font-bold text-ink mt-1 truncate">
+            <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
+              <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Contact &amp; City</div>
+              <div className="text-base sm:text-lg font-bold text-ink mt-1.5 truncate">
                 {customer?.mobile}
               </div>
-              <div className="text-[11px] text-ink-muted truncate">
+              <div className="text-xs text-ink-muted truncate mt-0.5">
                 {customer?.city || 'Lahore'} {customer?.address ? `• ${customer.address}` : ''}
               </div>
             </Card>
           </div>
 
           {/* Contact Details & Notes Card */}
-          <Card className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+          <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs sm:text-sm">
               <div>
                 <span className="text-ink-muted block font-medium">Party Type:</span>
-                <span className="font-bold text-ink capitalize">{customer?.type}</span>
+                <span className="font-bold text-ink capitalize text-sm sm:text-base">{customer?.type}</span>
               </div>
               <div>
                 <span className="text-ink-muted block font-medium">WhatsApp:</span>
-                <span className="font-bold text-ink">{customer?.whatsapp || '-'}</span>
+                <span className="font-bold text-ink font-mono text-sm sm:text-base">{customer?.whatsapp || '-'}</span>
               </div>
               <div>
                 <span className="text-ink-muted block font-medium">Alt Contact:</span>
-                <span className="font-bold text-ink">{customer?.alt || '-'}</span>
+                <span className="font-bold text-ink font-mono text-sm sm:text-base">{customer?.alt || '-'}</span>
               </div>
               <div>
                 <span className="text-ink-muted block font-medium">Internal Notes:</span>
@@ -463,16 +466,16 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                       <tr>
-                        <th className="py-2.5 px-4">Invoice #</th>
-                        <th className="py-2.5 px-4">Date</th>
-                        <th className="py-2.5 px-4">Total</th>
-                        <th className="py-2.5 px-4">Paid</th>
-                        <th className="py-2.5 px-4">Remaining</th>
-                        <th className="py-2.5 px-4">Status</th>
-                        <th className="py-2.5 px-4 text-right">Action</th>
+                        <th className="py-3.5 px-4">Invoice #</th>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4">Total</th>
+                        <th className="py-3.5 px-4">Paid</th>
+                        <th className="py-3.5 px-4">Remaining</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-warm-borderLight">
@@ -483,35 +486,35 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
                         return (
                           <tr key={inv._id} className="hover:bg-paper transition-colors">
-                            <td className="py-2.5 px-4 font-mono font-bold text-teal">
+                            <td className="py-4 px-4 font-mono font-bold text-teal">
                               <Link href={`/invoices/${inv._id}`} className="hover:underline">
                                 {inv.number}
                               </Link>
                             </td>
-                            <td className="py-2.5 px-4 text-ink-muted">{formatDate(inv.date)}</td>
-                            <td className="py-2.5 px-4 font-bold text-ink">{formatCurrency(inv.total)}</td>
-                            <td className="py-2.5 px-4 font-medium text-emerald-700">{formatCurrency(inv.paid)}</td>
-                            <td className={`py-2.5 px-4 font-bold ${inv.remaining > 0 ? 'text-status-danger' : 'text-emerald-700'}`}>
+                            <td className="py-4 px-4 text-ink-muted">{formatDate(inv.date)}</td>
+                            <td className="py-4 px-4 font-bold text-ink">{formatCurrency(inv.total)}</td>
+                            <td className="py-4 px-4 font-semibold text-emerald-700">{formatCurrency(inv.paid)}</td>
+                            <td className={`py-4 px-4 font-bold ${inv.remaining > 0 ? 'text-status-danger' : 'text-emerald-700'}`}>
                               {inv.remaining > 0 ? formatCurrency(inv.remaining) : '-'}
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-4 px-4">
                               {isFullyPaid ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900">
                                   Payment Complete
                                 </span>
                               ) : isPartial ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-900">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-900">
                                   Processing
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-900">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-900">
                                   Udhar
                                 </span>
                               )}
                             </td>
-                            <td className="py-2.5 px-4 text-right">
+                            <td className="py-4 px-4 text-right">
                               <Link href={`/invoices/${inv._id}`}>
-                                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-teal">
+                                <Button variant="ghost" size="sm" className="min-h-[32px] text-xs font-semibold px-2.5 text-teal">
                                   View
                                 </Button>
                               </Link>
@@ -528,39 +531,41 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
           {/* Payments Table */}
           <Card>
-            <CardHeader className="pb-3 border-b border-warm-border">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-emerald-700" />
+            <CardHeader className="pb-4 border-b border-warm-border">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-700" />
                 <span>Payment Vouchers Received</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {payments.length === 0 ? (
-                <div className="py-8 text-center text-xs text-ink-muted">
+                <div className="py-12 text-center text-sm text-ink-muted">
                   No payment vouchers registered for this party.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                       <tr>
-                        <th className="py-2.5 px-4">Date</th>
-                        <th className="py-2.5 px-4">Amount</th>
-                        <th className="py-2.5 px-4">Method</th>
-                        <th className="py-2.5 px-4">Reference Note</th>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4">Amount</th>
+                        <th className="py-3.5 px-4">Method</th>
+                        <th className="py-3.5 px-4">Reference Note</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-warm-borderLight">
-                      {payments.map((pm) => (
-                        <tr key={pm._id} className="hover:bg-paper transition-colors">
-                          <td className="py-2.5 px-4 text-ink-muted">{formatDate(pm.date)}</td>
-                          <td className="py-2.5 px-4 font-bold text-emerald-700 font-mono">
-                            {formatCurrency(pm.amount)}
+                      {payments.map((p) => (
+                        <tr key={p._id} className="hover:bg-paper transition-colors">
+                          <td className="py-4 px-4 text-ink-muted">{formatDate(p.date)}</td>
+                          <td className="py-4 px-4 font-bold text-emerald-700 text-sm sm:text-base">
+                            {formatCurrency(p.amount)}
                           </td>
-                          <td className="py-2.5 px-4">
-                            <Badge variant="neutral" size="sm">{pm.method}</Badge>
+                          <td className="py-4 px-4">
+                            <span className="px-2.5 py-1 rounded-lg border border-warm-border bg-paper-light font-semibold text-xs text-ink">
+                              {p.method}
+                            </span>
                           </td>
-                          <td className="py-2.5 px-4 text-ink-muted">{pm.reference || '-'}</td>
+                          <td className="py-4 px-4 text-ink-muted">{p.reference || '-'}</td>
                         </tr>
                       ))}
                     </tbody>

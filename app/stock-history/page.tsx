@@ -54,28 +54,28 @@ export default function StockHistoryPage() {
   return (
     <AppShell title="Stock Audit Trail">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             Inventory Stock Audit Log
           </h1>
-          <p className="text-xs md:text-sm text-ink-muted">
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
             Immutable audit record of every wallpaper stock addition, sale, return, and adjustment
           </p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <Card className="mb-6 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <Card className="mb-6 sm:mb-8 p-5 rounded-2xl shadow-warm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
             <input
               type="text"
               placeholder="Filter by WP number (e.g. WP-101)..."
               value={wpSearch}
               onChange={(e) => setWpSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+              className="w-full pl-11 pr-4 py-2.5 sm:py-3 text-sm bg-paper border border-warm-border rounded-xl text-ink focus:outline-none focus:border-teal min-h-[44px]"
             />
           </div>
 
@@ -83,7 +83,7 @@ export default function StockHistoryPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+              className="px-4 py-2.5 text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal min-h-[44px]"
             >
               <option value="">All Movement Types</option>
               <option value="Sold">Sold (Invoice)</option>
@@ -103,30 +103,30 @@ export default function StockHistoryPage() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-16 text-center text-xs text-ink-muted flex items-center justify-center">
-              <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
+            <div className="py-20 text-center text-sm text-ink-muted flex items-center justify-center">
+              <RefreshCw className="w-6 h-6 animate-spin text-teal mr-2" />
               Loading stock audit history...
             </div>
           ) : history.length === 0 ? (
             <div className="py-16 text-center text-ink-muted space-y-3">
               <History className="w-12 h-12 mx-auto text-ink-muted/40" />
               <div className="text-base font-semibold text-ink">No audit entries found</div>
-              <p className="text-xs max-w-sm mx-auto">
+              <p className="text-xs sm:text-sm max-w-sm mx-auto">
                 Stock changes from invoices, adjustments, and shipments will be recorded here automatically.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                   <tr>
-                    <th className="py-3 px-4">Date &amp; Time</th>
-                    <th className="py-3 px-4">WP# &amp; Design</th>
-                    <th className="py-3 px-4">Change Type</th>
-                    <th className="py-3 px-4 text-center">Change Qty</th>
-                    <th className="py-3 px-4 text-center">Prev Stock</th>
-                    <th className="py-3 px-4 text-center">New Stock</th>
-                    <th className="py-3 px-4">Reference Note</th>
+                    <th className="py-3.5 px-4">Date &amp; Time</th>
+                    <th className="py-3.5 px-4">WP# &amp; Design</th>
+                    <th className="py-3.5 px-4">Change Type</th>
+                    <th className="py-3.5 px-4 text-center">Change Qty</th>
+                    <th className="py-3.5 px-4 text-center">Prev Stock</th>
+                    <th className="py-3.5 px-4 text-center">New Stock</th>
+                    <th className="py-3.5 px-4">Reference Note</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
@@ -134,12 +134,12 @@ export default function StockHistoryPage() {
                     const isPositive = h.qty > 0;
                     return (
                       <tr key={h._id} className="hover:bg-paper transition-colors">
-                        <td className="py-3 px-4 text-ink-muted">{formatDateTime(h.date)}</td>
-                        <td className="py-3 px-4 font-bold text-ink">
-                          <span className="font-mono text-teal mr-1.5">{h.wp}</span>
+                        <td className="py-4 px-4 text-ink-muted whitespace-nowrap">{formatDateTime(h.date)}</td>
+                        <td className="py-4 px-4 font-bold text-ink">
+                          <span className="font-mono text-teal mr-2 text-sm sm:text-base">WP {h.wp}</span>
                           <span>{h.productId?.design || ''}</span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-4 px-4">
                           <Badge
                             variant={
                               h.type === 'Sold'
@@ -150,28 +150,28 @@ export default function StockHistoryPage() {
                                 ? 'teal'
                                 : 'neutral'
                             }
-                            size="sm"
+                            size="md"
                           >
                             {h.type}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-center font-bold">
+                        <td className="py-4 px-4 text-center font-bold">
                           <span
-                            className={`inline-flex items-center gap-0.5 ${
+                            className={`inline-flex items-center gap-1 font-mono text-sm sm:text-base ${
                               isPositive ? 'text-status-success' : 'text-status-danger'
                             }`}
                           >
                             {isPositive ? (
-                              <ArrowDownLeft className="w-3.5 h-3.5" />
+                              <ArrowDownLeft className="w-4 h-4" />
                             ) : (
-                              <ArrowUpRight className="w-3.5 h-3.5" />
+                              <ArrowUpRight className="w-4 h-4" />
                             )}
                             {isPositive ? `+${h.qty}` : h.qty} Rolls
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center text-ink-muted">{h.prevStock}</td>
-                        <td className="py-3 px-4 text-center font-bold text-ink">{h.newStock}</td>
-                        <td className="py-3 px-4 text-ink-muted">{h.reference || '-'}</td>
+                        <td className="py-4 px-4 text-center text-ink-muted font-mono">{h.prevStock}</td>
+                        <td className="py-4 px-4 text-center font-bold text-ink font-mono">{h.newStock}</td>
+                        <td className="py-4 px-4 text-ink-muted">{h.reference || '-'}</td>
                       </tr>
                     );
                   })}

@@ -350,42 +350,45 @@ export default function PaymentsPage() {
   return (
     <AppShell title="Payment Ledger">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
-              Customer Payments &amp; Cash Inflow
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
+              Payments &amp; Collections
             </h1>
-            <Badge variant="success" size="sm">
+            <Badge variant="success" size="md">
               Unlocked
             </Badge>
           </div>
-          <p className="text-xs md:text-sm text-ink-muted mt-0.5">
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
             Record installments, invoice clearances, and customer account deposits
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={handleLockSection}
-            leftIcon={<Lock className="w-3.5 h-3.5 text-amber-600" />}
+            leftIcon={<Lock className="w-4 h-4 text-amber-600" />}
             title="Lock Payment Section"
           >
             Lock Section
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={fetchPayments}
-            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
+            leftIcon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
           >
             Refresh
           </Button>
           <Button
             variant="teal"
-            size="sm"
+            size="md"
+            className="min-h-[42px] sm:min-h-[44px]"
             onClick={() => {
               setSelectedCustId('');
               setSelectedInvoiceId('');
@@ -402,46 +405,40 @@ export default function PaymentsPage() {
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="bg-paper border-warm-border">
-          <CardContent className="p-4">
-            <span className="text-[11px] uppercase font-bold text-ink-muted">Total Collections</span>
-            <div className="text-2xl font-extrabold text-teal mt-1">
-              {formatCurrency(totalReceived)}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">{payments.length} total transactions recorded</p>
-          </CardContent>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
+        <Card className="bg-paper border-warm-border p-5 sm:p-6 rounded-2xl shadow-warm">
+          <span className="text-xs uppercase font-bold text-ink-muted tracking-wider">Total Collections</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-teal mt-1.5">
+            {formatCurrency(totalReceived)}
+          </div>
+          <p className="text-xs text-ink-muted mt-1">{payments.length} total transactions recorded</p>
         </Card>
 
-        <Card className="bg-paper border-warm-border">
-          <CardContent className="p-4">
-            <span className="text-[11px] uppercase font-bold text-ink-muted">Today&apos;s Collection</span>
-            <div className="text-2xl font-extrabold text-status-success mt-1">
-              {formatCurrency(todayReceived)}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">Cash received today</p>
-          </CardContent>
+        <Card className="bg-paper border-warm-border p-5 sm:p-6 rounded-2xl shadow-warm">
+          <span className="text-xs uppercase font-bold text-ink-muted tracking-wider">Today&apos;s Collection</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-status-success mt-1.5">
+            {formatCurrency(todayReceived)}
+          </div>
+          <p className="text-xs text-ink-muted mt-1">Cash received today</p>
         </Card>
 
-        <Card className="bg-paper border-warm-border">
-          <CardContent className="p-4">
-            <span className="text-[11px] uppercase font-bold text-ink-muted">Active Customers</span>
-            <div className="text-2xl font-extrabold text-ink mt-1">
-              {customers.length}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">Accounts registered</p>
-          </CardContent>
+        <Card className="bg-paper border-warm-border p-5 sm:p-6 rounded-2xl shadow-warm">
+          <span className="text-xs uppercase font-bold text-ink-muted tracking-wider">Active Customers</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">
+            {customers.length}
+          </div>
+          <p className="text-xs text-ink-muted mt-1">Accounts registered</p>
         </Card>
       </div>
 
       {/* Search Input Bar */}
-      <div className="mb-4">
+      <div className="mb-6 sm:mb-8">
         <Input
           placeholder="Search by customer name, phone, code, invoice #, method or reference note..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           leftIcon={<Search className="w-4 h-4" />}
-          className="max-w-md bg-paper-light"
+          className="max-w-lg bg-paper-light min-h-[44px]"
         />
       </div>
 
@@ -465,46 +462,46 @@ export default function PaymentsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                   <tr>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Allocated Invoice</th>
-                    <th className="py-3 px-4">Method</th>
-                    <th className="py-3 px-4">Reference Note</th>
-                    <th className="py-3 px-4 text-right">Amount Received</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Customer</th>
+                    <th className="py-3.5 px-4">Allocated Invoice</th>
+                    <th className="py-3.5 px-4">Method</th>
+                    <th className="py-3.5 px-4">Reference Note</th>
+                    <th className="py-3.5 px-4 text-right">Amount Received</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
                   {filteredPayments.map((p) => (
                     <tr key={p._id} className="hover:bg-paper transition-colors">
-                      <td className="py-3 px-4 text-ink-muted">{formatDate(p.date)}</td>
-                      <td className="py-3 px-4 font-bold text-ink">
+                      <td className="py-4 px-4 text-ink-muted">{formatDate(p.date)}</td>
+                      <td className="py-4 px-4 font-bold text-ink">
                         <div>{p.customerId?.name || 'Walk-in Customer'}</div>
-                        <div className="text-[10px] text-teal font-mono">
+                        <div className="text-xs text-teal font-mono mt-0.5">
                           {p.customerId?.code} • {p.customerId?.mobile}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-4 px-4">
                         {p.invoiceId ? (
                           <a
                             href={`/invoices/${p.invoiceId._id}`}
-                            className="font-mono font-bold text-teal bg-teal-subtle hover:bg-teal hover:text-white transition-colors px-2 py-0.5 rounded inline-block"
+                            className="font-mono font-bold text-teal bg-teal-subtle hover:bg-teal hover:text-white transition-colors px-2.5 py-1 rounded-lg inline-block text-xs sm:text-sm"
                           >
                             {p.invoiceId.number}
                           </a>
                         ) : (
-                          <span className="text-ink-muted text-[11px]">General Ledger Credit</span>
+                          <span className="text-ink-muted text-xs">General Ledger Credit</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded border border-warm-border bg-paper-light font-medium text-ink">
+                      <td className="py-4 px-4">
+                        <span className="px-2.5 py-1 rounded-lg border border-warm-border bg-paper-light font-semibold text-ink text-xs">
                           {p.method}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-ink-muted">{p.reference || '-'}</td>
-                      <td className="py-3 px-4 text-right font-extrabold text-status-success text-sm">
+                      <td className="py-4 px-4 text-ink-muted">{p.reference || '-'}</td>
+                      <td className="py-4 px-4 text-right font-extrabold text-status-success text-sm sm:text-base">
                         {formatCurrency(p.amount)}
                       </td>
                     </tr>

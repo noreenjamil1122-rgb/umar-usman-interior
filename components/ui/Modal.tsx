@@ -69,23 +69,23 @@ export function Modal({
         aria-modal="true"
         aria-labelledby="modal-headline"
         className={cn(
-          'relative w-full bg-paper-light rounded-2xl border border-warm-border shadow-warm-lg z-50 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150',
+          'relative w-full bg-paper-light rounded-2xl sm:rounded-3xl border border-warm-border shadow-warm-lg z-50 max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-150',
           maxWidths[resolvedSize] || 'max-w-md'
         )}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-warm-borderLight shrink-0">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 border-b border-warm-borderLight shrink-0">
           <div>
-            <h3 id="modal-headline" className="text-base md:text-lg font-bold text-ink">
+            <h3 id="modal-headline" className="text-lg sm:text-xl font-bold text-ink tracking-tight">
               {title}
             </h3>
             {description && (
-              <p className="text-xs text-ink-muted mt-0.5">{description}</p>
+              <p className="text-xs sm:text-sm text-ink-muted mt-1 leading-relaxed">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-paper-dark transition-colors"
+            className="p-2 rounded-xl text-ink-muted hover:text-ink hover:bg-paper-dark transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
@@ -93,7 +93,7 @@ export function Modal({
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-6 sm:p-8 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

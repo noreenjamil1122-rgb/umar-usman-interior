@@ -426,24 +426,25 @@ Reference: ${invoice.reference || '-'}`;
   return (
     <AppShell title={`Invoice ${invoice.number}`}>
       {/* Top Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={() => router.push('/invoices')}
             leftIcon={<ArrowLeft className="w-4 h-4" />}
           >
             Invoices
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight font-mono">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight font-mono">
                 {invoice.number}
               </h1>
               {renderStatusPill()}
 
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+              <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold ${
                 invoice.jobStatus === 'Fully Paid'
                   ? 'bg-emerald-100 text-emerald-800'
                   : invoice.jobStatus === 'In Progress'
@@ -455,13 +456,13 @@ Reference: ${invoice.reference || '-'}`;
                 {invoice.jobStatus || (isPaid ? 'Fully Paid' : 'Advance Received')}
               </span>
             </div>
-            <p className="text-xs text-ink-muted flex items-center gap-2 mt-0.5">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
+            <p className="text-xs sm:text-sm text-ink-muted flex items-center gap-2 mt-1">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
                 <span>Issued on {formatDate(invoice.date)}</span>
               </span>
               {invoice.createdByName && (
-                <span className="text-[11px] text-ink-muted">
+                <span className="text-xs text-ink-muted">
                   • Created by {invoice.createdByName} ({invoice.createdByRole || 'Staff'})
                 </span>
               )}
@@ -469,11 +470,12 @@ Reference: ${invoice.reference || '-'}`;
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {!isPaid && (
             <Button
               variant="teal"
-              size="sm"
+              size="md"
+              className="min-h-[42px] sm:min-h-[44px]"
               onClick={() => setIsPaymentOpen(true)}
               leftIcon={<CreditCard className="w-4 h-4" />}
             >
@@ -483,9 +485,9 @@ Reference: ${invoice.reference || '-'}`;
 
           <Button
             variant="outline"
-            size="sm"
+            size="md"
+            className="min-h-[42px] text-emerald-700 border-emerald-300 hover:bg-emerald-50"
             onClick={handleWhatsAppShare}
-            className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
             leftIcon={<Share2 className="w-4 h-4" />}
           >
             WhatsApp
@@ -493,7 +495,8 @@ Reference: ${invoice.reference || '-'}`;
 
           <Button
             variant="brass"
-            size="sm"
+            size="md"
+            className="min-h-[42px]"
             onClick={printInNewTab}
             leftIcon={<Printer className="w-4 h-4" />}
           >
@@ -504,7 +507,8 @@ Reference: ${invoice.reference || '-'}`;
             <>
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
+                className="min-h-[42px]"
                 onClick={handleOpenEdit}
                 leftIcon={<Edit className="w-4 h-4" />}
               >
@@ -512,7 +516,8 @@ Reference: ${invoice.reference || '-'}`;
               </Button>
               <Button
                 variant="danger"
-                size="sm"
+                size="md"
+                className="min-h-[42px]"
                 onClick={() => setIsDeleteAuthOpen(true)}
                 title="Delete Invoice & Restore Stock"
                 leftIcon={<Trash2 className="w-4 h-4" />}
@@ -526,23 +531,24 @@ Reference: ${invoice.reference || '-'}`;
 
       {/* Persistent Udhar Reminder Alert for Outstanding Bills */}
       {!isPaid && (
-        <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-warm">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-200 text-amber-900 flex items-center justify-center shrink-0 font-bold">
+        <div className="mb-6 sm:mb-8 p-5 rounded-2xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-warm">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center shrink-0 font-extrabold text-base">
               !
             </div>
             <div>
-              <div className="font-bold text-amber-950 text-sm">
+              <div className="font-bold text-amber-950 text-sm sm:text-base">
                 Outstanding Balance Reminder: {formatCurrency(invoice.remaining)} Due
               </div>
-              <p className="text-xs text-amber-900">
+              <p className="text-xs sm:text-sm text-amber-900 mt-0.5">
                 Job stage: <strong className="uppercase">{invoice.jobStatus || 'Advance Received'}</strong>. Automatic reminder active until this customer account is 100% cleared.
               </p>
             </div>
           </div>
           <Button
             variant="teal"
-            size="sm"
+            size="md"
+            className="min-h-[40px]"
             onClick={() => setIsPaymentOpen(true)}
             leftIcon={<CreditCard className="w-4 h-4" />}
           >
@@ -551,72 +557,72 @@ Reference: ${invoice.reference || '-'}`;
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         {/* Left 2 Cols: Customer and Line Items */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
           {/* Customer Profile Box */}
-          <Card>
-            <CardHeader>
+          <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
+            <CardHeader className="p-0 pb-4">
               <CardTitle>Customer Information</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <CardContent className="p-0 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs sm:text-sm">
                 <div>
-                  <div className="text-ink-muted uppercase font-semibold">Name</div>
-                  <div className="text-sm font-bold text-ink mt-0.5">{invoice.customerId?.name}</div>
-                  <div className="text-teal font-mono text-[11px] font-bold mt-0.5">
+                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Name</div>
+                  <div className="text-base font-bold text-ink mt-1">{invoice.customerId?.name}</div>
+                  <div className="text-teal font-mono text-xs font-bold mt-0.5">
                     {invoice.customerId?.code}
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-ink-muted uppercase font-semibold">Phone</div>
-                  <div className="font-semibold text-ink mt-0.5">{invoice.customerId?.mobile}</div>
+                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Phone</div>
+                  <div className="font-bold text-ink mt-1 text-sm sm:text-base">{invoice.customerId?.mobile}</div>
                   {invoice.customerId?.whatsapp && (
-                    <div className="text-emerald-700 text-[11px]">
+                    <div className="text-emerald-700 text-xs font-semibold mt-0.5">
                       WA: {invoice.customerId.whatsapp}
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <div className="text-ink-muted uppercase font-semibold">Address / City</div>
-                  <div className="text-ink font-medium mt-0.5">
+                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Address / City</div>
+                  <div className="text-ink font-medium mt-1">
                     {invoice.customerId?.address || 'Lahore'}
                   </div>
-                  <div className="text-ink-muted text-[11px]">{invoice.customerId?.city || 'Lahore'}</div>
+                  <div className="text-ink-muted text-xs mt-0.5">{invoice.customerId?.city || 'Lahore'}</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Line Items Table */}
-          <Card>
-            <CardHeader>
+          <Card className="rounded-2xl shadow-warm">
+            <CardHeader className="pb-4">
               <CardTitle>Itemized Wallpaper Rolls</CardTitle>
               <CardDescription>Verified inventory quantities &amp; bill rates</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
                   <tr>
-                    <th className="py-2.5 px-4">WP#</th>
-                    <th className="py-2.5 px-4">Design</th>
-                    <th className="py-2.5 px-4 text-center">Quantity</th>
-                    <th className="py-2.5 px-4 text-right">Rate (PKR)</th>
-                    <th className="py-2.5 px-4 text-right">Amount (PKR)</th>
+                    <th className="py-3.5 px-4">WP#</th>
+                    <th className="py-3.5 px-4">Design</th>
+                    <th className="py-3.5 px-4 text-center">Quantity</th>
+                    <th className="py-3.5 px-4 text-right">Rate (PKR)</th>
+                    <th className="py-3.5 px-4 text-right">Amount (PKR)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
                   {invoice.items.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-paper/50">
-                      <td className="py-3 px-4 font-mono font-bold text-teal">{item.wp}</td>
-                      <td className="py-3 px-4 font-semibold text-ink">{item.design}</td>
-                      <td className="py-3 px-4 text-center font-bold">{item.qty} Rolls</td>
-                      <td className="py-3 px-4 text-right font-medium text-ink">
+                    <tr key={idx} className="hover:bg-paper/50 transition-colors">
+                      <td className="py-4 px-4 font-mono font-bold text-teal text-sm sm:text-base">WP {item.wp}</td>
+                      <td className="py-4 px-4 font-semibold text-ink">{item.design}</td>
+                      <td className="py-4 px-4 text-center font-bold">{item.qty} Rolls</td>
+                      <td className="py-4 px-4 text-right font-medium text-ink">
                         {formatCurrency(item.rate)}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-ink">
+                      <td className="py-4 px-4 text-right font-bold text-ink">
                         {formatCurrency(item.amount)}
                       </td>
                     </tr>
@@ -625,16 +631,15 @@ Reference: ${invoice.reference || '-'}`;
               </table>
             </CardContent>
           </Card>
-
           {/* Payment Receipts History */}
-          <Card>
-            <CardHeader>
+          <Card className="rounded-2xl shadow-warm">
+            <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <CardTitle>Invoice Payments</CardTitle>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                      <Lock className="w-2.5 h-2.5 text-amber-600" />
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                      <Lock className="w-3 h-3 text-amber-600" />
                       Admin Locked
                     </span>
                   </div>
@@ -644,7 +649,7 @@ Reference: ${invoice.reference || '-'}`;
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="min-h-[34px] text-xs font-semibold px-3"
                     onClick={() => setIsPaymentOpen(true)}
                   >
                     + Add Payment
@@ -654,74 +659,76 @@ Reference: ${invoice.reference || '-'}`;
             </CardHeader>
             <CardContent className="p-0">
               {payments.length === 0 ? (
-                <div className="p-4 text-center text-xs text-ink-muted">
+                <div className="p-6 text-center text-sm text-ink-muted">
                   No payments recorded for this invoice yet.
                 </div>
               ) : (
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
-                    <tr>
-                      <th className="py-2 px-4">Date</th>
-                      <th className="py-2 px-4">Amount</th>
-                      <th className="py-2 px-4">Method</th>
-                      <th className="py-2 px-4">Reference</th>
-                      <th className="py-2 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-warm-borderLight">
-                    {payments.map((p) => (
-                      <tr key={p._id} className="hover:bg-paper/50">
-                        <td className="py-2.5 px-4 text-ink-muted">{formatDateTime(p.date)}</td>
-                        <td className="py-2.5 px-4 font-bold text-status-success">
-                          {formatCurrency(p.amount)}
-                        </td>
-                        <td className="py-2.5 px-4 text-ink">{p.method}</td>
-                        <td className="py-2.5 px-4 text-ink-muted">{p.reference || '-'}</td>
-                        <td className="py-2.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleInitiateEditPayment(p)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-teal hover:bg-teal/10 transition-colors"
-                              title="Edit Payment (Admin Password Required)"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                              <span>Edit</span>
-                              <Lock className="w-2.5 h-2.5 text-amber-600" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInitiateDeletePayment(p)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-status-danger hover:bg-red-50 transition-colors"
-                              title="Delete Payment (Admin Password Required)"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
+                      <tr>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4">Amount</th>
+                        <th className="py-3.5 px-4">Method</th>
+                        <th className="py-3.5 px-4">Reference</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-warm-borderLight">
+                      {payments.map((p) => (
+                        <tr key={p._id} className="hover:bg-paper/50 transition-colors">
+                          <td className="py-4 px-4 text-ink-muted whitespace-nowrap">{formatDateTime(p.date)}</td>
+                          <td className="py-4 px-4 font-bold text-status-success text-sm sm:text-base">
+                            {formatCurrency(p.amount)}
+                          </td>
+                          <td className="py-4 px-4 text-ink font-medium">{p.method}</td>
+                          <td className="py-4 px-4 text-ink-muted">{p.reference || '-'}</td>
+                          <td className="py-4 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateEditPayment(p)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-teal hover:bg-teal/10 transition-colors"
+                                title="Edit Payment (Admin Password Required)"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                <span>Edit</span>
+                                <Lock className="w-3 h-3 text-amber-600" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateDeletePayment(p)}
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold text-status-danger hover:bg-red-50 transition-colors"
+                                title="Delete Payment (Admin Password Required)"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
         {/* Right 1 Col: Financial Summary */}
-        <div className="space-y-6">
-          <Card variant="elevated">
-            <CardHeader>
+        <div className="space-y-6 sm:space-y-8">
+          <Card variant="elevated" className="p-5 sm:p-6 rounded-2xl shadow-warm">
+            <CardHeader className="p-0 pb-4">
               <CardTitle>Financial Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              <div className="flex justify-between pb-2 border-b border-warm-borderLight">
+            <CardContent className="p-0 pt-2 space-y-3.5 text-xs sm:text-sm">
+              <div className="flex justify-between pb-2.5 border-b border-warm-borderLight">
                 <span className="text-ink-muted">Subtotal:</span>
                 <span className="font-semibold text-ink">{formatCurrency(invoice.subtotal)}</span>
               </div>
 
               {invoice.discount > 0 && (
-                <div className="flex justify-between pb-2 border-b border-warm-borderLight text-status-danger">
+                <div className="flex justify-between pb-2.5 border-b border-warm-borderLight text-status-danger font-medium">
                   <span>
                     Discount {invoice.discount <= 100 && roundMoney(invoice.subtotal - (invoice.subtotal * invoice.discount) / 100) === invoice.total ? `(${invoice.discount}%)` : '(Rs.)'}:
                   </span>
@@ -736,7 +743,7 @@ Reference: ${invoice.reference || '-'}`;
               )}
 
               {invoice.tax > 0 && (
-                <div className="flex justify-between pb-2 border-b border-warm-borderLight">
+                <div className="flex justify-between pb-2.5 border-b border-warm-borderLight">
                   <span className="text-ink-muted">Tax ({invoice.tax}%):</span>
                   <span className="font-semibold text-ink">
                     + {formatCurrency((Math.max(0, invoice.subtotal - (invoice.discount <= 100 && roundMoney(invoice.subtotal - (invoice.subtotal * invoice.discount) / 100) === invoice.total ? (invoice.subtotal * invoice.discount) / 100 : invoice.discount)) * invoice.tax) / 100)}
@@ -744,40 +751,40 @@ Reference: ${invoice.reference || '-'}`;
                 </div>
               )}
 
-              <div className="p-3 bg-paper rounded-xl border border-warm-border flex justify-between items-center">
-                <span className="font-bold text-ink uppercase">Grand Total:</span>
-                <span className="text-base font-extrabold text-teal">{formatCurrency(invoice.total)}</span>
+              <div className="p-4 bg-paper rounded-2xl border border-warm-border flex justify-between items-center shadow-warm">
+                <span className="font-extrabold text-ink uppercase text-xs sm:text-sm tracking-wider">Grand Total:</span>
+                <span className="text-lg sm:text-xl font-extrabold text-teal">{formatCurrency(invoice.total)}</span>
               </div>
 
-              <div className="flex justify-between pb-2 border-b border-warm-borderLight text-status-success">
-                <span className="font-semibold">Total Paid:</span>
-                <span className="font-bold">{formatCurrency(invoice.paid)}</span>
+              <div className="flex justify-between pb-2.5 border-b border-warm-borderLight text-status-success">
+                <span className="font-bold">Total Paid:</span>
+                <span className="font-extrabold">{formatCurrency(invoice.paid)}</span>
               </div>
 
               {invoice.remaining < 0 ? (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex justify-between items-center">
-                  <span className="font-bold text-emerald-900">Advance / Credit:</span>
-                  <span className="text-base font-extrabold text-emerald-950">
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex justify-between items-center shadow-warm">
+                  <span className="font-bold text-emerald-900 text-xs sm:text-sm">Advance / Credit:</span>
+                  <span className="text-base sm:text-lg font-extrabold text-emerald-950">
                     {formatCurrency(Math.abs(invoice.remaining))}
                   </span>
                 </div>
               ) : invoice.remaining === 0 ? (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex justify-between items-center">
-                  <span className="font-bold text-emerald-900">Balance Status:</span>
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex justify-between items-center shadow-warm">
+                  <span className="font-bold text-emerald-900 text-xs sm:text-sm">Balance Status:</span>
                   <span className="text-sm font-bold text-emerald-950">Cleared (Rs. 0)</span>
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex justify-between items-center">
-                  <span className="font-bold text-amber-900">Remaining Udhar:</span>
-                  <span className="text-base font-extrabold text-amber-950">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex justify-between items-center shadow-warm">
+                  <span className="font-bold text-amber-900 text-xs sm:text-sm">Remaining Udhar:</span>
+                  <span className="text-base sm:text-lg font-extrabold text-amber-950">
                     {formatCurrency(invoice.remaining)}
                   </span>
                 </div>
               )}
 
               {invoice.notes && (
-                <div className="pt-2 text-ink-muted">
-                  <span className="font-semibold text-ink">Notes: </span>
+                <div className="pt-2 text-ink-muted text-xs sm:text-sm">
+                  <span className="font-bold text-ink">Notes: </span>
                   <span>{invoice.notes}</span>
                 </div>
               )}

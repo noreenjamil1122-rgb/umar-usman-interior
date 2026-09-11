@@ -20,13 +20,13 @@ export function AppShell({ children, title }: AppShellProps) {
       <Sidebar />
 
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 pb-24 md:pb-6">
         <Header
           title={title}
           onMobileMenuOpen={() => setMobileMenuOpen(true)}
         />
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 sm:space-y-8">
           {children}
         </main>
       </div>
@@ -34,6 +34,7 @@ export function AppShell({ children, title }: AppShellProps) {
       {/* Mobile Bottom Bar & Slide-in Drawer */}
       <MobileNav
         isOpen={mobileMenuOpen}
+        onOpen={() => setMobileMenuOpen(true)}
         onClose={() => setMobileMenuOpen(false)}
       />
 

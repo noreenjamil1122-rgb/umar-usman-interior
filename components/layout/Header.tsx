@@ -127,31 +127,31 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
   });
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between h-16 px-4 md:px-6 bg-paper-light/95 backdrop-blur-sm border-b border-warm-border">
+    <header className="sticky top-0 z-20 flex items-center justify-between h-16 sm:h-18 px-4 sm:px-6 lg:px-8 bg-paper-light/95 backdrop-blur-md border-b border-warm-border shadow-2xs">
       {/* Left: Mobile hamburger & Title */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMobileMenuOpen}
-          className="p-2 -ml-2 rounded-lg text-ink-muted hover:text-ink hover:bg-paper-dark md:hidden"
+          className="p-2.5 -ml-2 rounded-xl text-ink-muted hover:text-ink hover:bg-paper-dark md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
           aria-label="Open navigation menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white p-1 border border-warm-border flex items-center justify-center shrink-0 shadow-warm md:hidden">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white p-1.5 border border-warm-border flex items-center justify-center shrink-0 shadow-warm md:hidden">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          <h2 className="text-base md:text-lg font-bold text-ink tracking-tight">
+          <h2 className="text-base sm:text-xl font-bold text-ink tracking-tight">
             {title || 'Umar Usman Interior'}
           </h2>
         </div>
       </div>
 
       {/* Center/Search Quick Trigger */}
-      <div className="hidden sm:flex items-center flex-1 max-w-md mx-4">
+      <div className="hidden sm:flex items-center flex-1 max-w-md mx-6">
         <div className="relative w-full">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-ink-muted pointer-events-none" />
           <input
             type="text"
             readOnly
@@ -160,9 +160,9 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
               const searchInput = document.getElementById('global-search-trigger');
               if (searchInput) searchInput.click();
             }}
-            className="w-full pl-9 pr-12 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink placeholder:text-ink-muted/70 focus:outline-none focus:border-teal cursor-pointer hover:bg-paper-light transition-colors"
+            className="w-full pl-10 pr-14 py-2.5 text-xs sm:text-sm bg-paper border border-warm-border rounded-xl text-ink placeholder:text-ink-muted/70 focus:outline-none focus:border-teal cursor-pointer hover:bg-paper-light hover:border-teal/50 transition-all shadow-2xs"
           />
-          <kbd className="absolute right-2.5 top-2 px-1.5 py-0.5 text-[10px] font-mono text-ink-muted bg-paper-dark/60 rounded border border-warm-border">
+          <kbd className="absolute right-3 top-2.5 px-2 py-0.5 text-[10px] font-mono font-medium text-ink-muted bg-paper-dark/60 rounded-md border border-warm-border">
             Ctrl+K
           </kbd>
         </div>
@@ -175,7 +175,7 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
           onClick={() => setIsOpen(!isOpen)}
           title="Real-time Alerts &amp; Udhar Notifications"
           aria-label="Real-time Notifications"
-          className={`relative p-2 rounded-xl transition-all duration-150 ${
+          className={`relative p-2.5 rounded-xl min-w-[42px] min-h-[42px] flex items-center justify-center transition-all duration-150 ${
             isOpen
               ? 'bg-teal text-white shadow-warm'
               : 'text-ink-muted hover:text-ink hover:bg-paper-dark'
@@ -186,14 +186,14 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
           {/* Daily Udhar Blinking Dot (Only if unacknowledged today) */}
           {hasUnackedUdhar && (
             <>
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-status-danger rounded-full animate-ping" />
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-status-danger rounded-full ring-2 ring-paper-light" />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-status-danger rounded-full animate-ping" />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-status-danger rounded-full ring-2 ring-paper-light" />
             </>
           )}
 
           {/* Unread Count Badge */}
           {unreadCount > 0 && !hasUnackedUdhar && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-status-danger text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-paper-light animate-pulse">
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-status-danger text-white text-[11px] font-black rounded-full flex items-center justify-center ring-2 ring-paper-light animate-pulse">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -201,7 +201,7 @@ export function Header({ onMobileMenuOpen, title }: HeaderProps) {
 
         {/* Real-Time Notifications Dropdown Popover */}
         {isOpen && (
-          <div className="absolute right-0 top-12 w-80 sm:w-96 bg-paper-light border border-warm-border rounded-2xl shadow-warm-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute right-0 top-14 w-80 sm:w-96 bg-paper-light border border-warm-border rounded-2xl shadow-warm-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Popover Header */}
             <div className="p-3.5 bg-paper border-b border-warm-border flex items-center justify-between">
               <div className="flex items-center gap-2">

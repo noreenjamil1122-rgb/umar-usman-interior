@@ -485,39 +485,39 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
   return (
     <AppShell title={book ? `${book.name} Catalog` : 'Wallpaper Book'}>
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
             onClick={() => router.push('/books')}
             leftIcon={<ArrowLeft className="w-4 h-4" />}
           >
             All Books
           </Button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span
-                className="w-3.5 h-3.5 rounded-full inline-block shadow-sm"
+                className="w-4 h-4 rounded-full inline-block shadow-sm"
                 style={{ backgroundColor: book?.color || '#1E6F6C' }}
               />
-              <h1 className="text-xl md:text-2xl font-bold text-ink tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
                 {book?.name || 'Wallpaper Book'}
               </h1>
-              <Badge variant="brass" size="sm" className="font-mono">
+              <Badge variant="brass" size="md" className="font-mono font-bold">
                 {book?.code}
               </Badge>
             </div>
-            <p className="text-xs text-ink-muted mt-0.5">
+            <p className="text-xs sm:text-sm text-ink-muted mt-0.5">
               Designs catalog, roll stock levels, and AI sheet import
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant="outline"
-            size="sm"
+            size="md"
             onClick={() => {
               setBulkRows([]);
               setIsBulkModalOpen(true);
@@ -529,9 +529,10 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
           <Button
             variant="teal"
-            size="sm"
+            size="md"
             onClick={handleOpenAddProduct}
             leftIcon={<Plus className="w-4 h-4" />}
+            className="shadow-warm"
           >
             + Add Wallpaper
           </Button>
@@ -539,44 +540,44 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4 border-l-4 border-l-teal">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Designs in Catalog</div>
-          <div className="text-2xl font-bold text-ink mt-1">{products.length}</div>
-          <div className="text-[11px] text-ink-muted mt-0.5">Unique wallpaper numbers</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <Card className="p-5 sm:p-6 border-l-4 border-l-teal shadow-warm">
+          <div className="text-xs sm:text-sm font-bold text-ink-muted uppercase">Designs in Catalog</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">{products.length}</div>
+          <div className="text-xs text-ink-muted mt-1">Unique wallpaper numbers</div>
         </Card>
 
-        <Card className="p-4 border-l-4 border-l-brass">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Total Roll Stock</div>
-          <div className="text-2xl font-bold text-ink mt-1">
-            {totalRolls} <span className="text-xs text-ink-muted font-normal">Rolls</span>
+        <Card className="p-5 sm:p-6 border-l-4 border-l-brass shadow-warm">
+          <div className="text-xs sm:text-sm font-bold text-ink-muted uppercase">Total Roll Stock</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">
+            {totalRolls} <span className="text-xs sm:text-sm text-ink-muted font-normal">Rolls</span>
           </div>
-          <div className="text-[11px] text-ink-muted mt-0.5">Available across godowns</div>
+          <div className="text-xs text-ink-muted mt-1">Available across godowns</div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Low Stock</div>
-          <div className="text-2xl font-bold text-amber-600 mt-1">{lowCount}</div>
-          <div className="text-[11px] text-ink-muted mt-0.5">At or below reorder limit</div>
+        <Card className="p-5 sm:p-6 shadow-warm">
+          <div className="text-xs sm:text-sm font-bold text-ink-muted uppercase">Low Stock</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1.5">{lowCount}</div>
+          <div className="text-xs text-ink-muted mt-1">At or below reorder limit</div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs font-semibold text-ink-muted uppercase">Out of Stock</div>
-          <div className="text-2xl font-bold text-status-danger mt-1">{outCount}</div>
-          <div className="text-[11px] text-ink-muted mt-0.5">Zero rolls available</div>
+        <Card className="p-5 sm:p-6 shadow-warm">
+          <div className="text-xs sm:text-sm font-bold text-ink-muted uppercase">Out of Stock</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-status-danger mt-1.5">{outCount}</div>
+          <div className="text-xs text-ink-muted mt-1">Zero rolls available</div>
         </Card>
       </div>
 
       {/* Search Input */}
-      <Card className="p-3 mb-6">
+      <Card className="p-4 sm:p-5 mb-6 sm:mb-8">
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-ink-muted" />
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-ink-muted" />
           <input
             type="text"
             placeholder="Search wallpapers in this book by WP number, color, or warehouse..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs md:text-sm bg-paper border border-warm-border rounded-lg text-ink focus:outline-none focus:border-teal"
+            className="w-full min-h-[44px] pl-10 pr-3.5 py-2 text-sm bg-paper border border-warm-border rounded-xl text-ink font-semibold focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
           />
         </div>
       </Card>
@@ -585,30 +586,30 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-20 text-center text-xs text-ink-muted flex items-center justify-center">
+            <div className="py-20 text-center text-sm text-ink-muted flex items-center justify-center">
               <RefreshCw className="w-5 h-5 animate-spin text-teal mr-2" />
               Loading catalog designs...
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-ink-muted space-y-3">
+            <div className="py-20 text-center text-ink-muted space-y-3">
               <Package className="w-12 h-12 mx-auto text-ink-muted/40" />
-              <div className="text-base font-semibold text-ink">No wallpapers in this book</div>
-              <p className="text-xs max-w-sm mx-auto">
+              <div className="text-base font-bold text-ink">No wallpapers in this book</div>
+              <p className="text-xs sm:text-sm max-w-sm mx-auto">
                 Click &ldquo;+ Add Wallpaper&rdquo; or &ldquo;📷 Import Sheet (Bulk)&rdquo; to populate this book.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-bold text-xs">
                   <tr>
-                    <th className="py-3 px-4">WP No.</th>
-                    <th className="py-3 px-4">Color</th>
-                    <th className="py-3 px-4">Warehouse</th>
-                    <th className="py-3 px-4">Sale Price</th>
-                    <th className="py-3 px-4">Stock</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4">WP No.</th>
+                    <th className="py-3.5 px-4">Color</th>
+                    <th className="py-3.5 px-4">Warehouse</th>
+                    <th className="py-3.5 px-4">Sale Price</th>
+                    <th className="py-3.5 px-4">Stock</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-borderLight">
@@ -624,16 +625,16 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                           isOut ? 'bg-rose-50/40' : isLow ? 'bg-amber-50/40' : ''
                         }`}
                       >
-                        <td className="py-3 px-4 font-mono font-bold text-teal">
-                          <div className="text-sm">WP {p.wp}</div>
-                          {p.code && <div className="text-[10px] text-ink-muted">{p.code}</div>}
+                        <td className="py-4 px-4 font-mono font-bold text-teal">
+                          <div className="text-sm sm:text-base">WP {p.wp}</div>
+                          {p.code && <div className="text-xs text-ink-muted font-normal mt-0.5">{p.code}</div>}
                         </td>
-                        <td className="py-3 px-4 text-ink-muted">{p.color || '-'}</td>
-                        <td className="py-3 px-4 text-ink font-medium">
+                        <td className="py-4 px-4 text-ink-muted">{p.color || '-'}</td>
+                        <td className="py-4 px-4 text-ink font-medium">
                           {p.warehouseId ? (
                             <Link
                               href={`/warehouses/${p.warehouseId._id}`}
-                              className="hover:text-teal inline-flex items-center gap-1"
+                              className="hover:text-teal inline-flex items-center gap-1 font-semibold"
                             >
                               <span>{p.warehouseId.name}</span>
                             </Link>
@@ -641,11 +642,11 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                             <span className="text-ink-muted">-</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 font-bold text-ink">{formatCurrency(p.salePrice)}</td>
-                        <td className="py-3 px-4 font-mono text-sm font-bold text-ink">
-                          {p.stock} <span className="text-[10px] font-normal text-ink-muted">{p.unit}</span>
+                        <td className="py-4 px-4 font-bold text-ink">{formatCurrency(p.salePrice)}</td>
+                        <td className="py-4 px-4 font-mono text-sm sm:text-base font-extrabold text-ink">
+                          {p.stock} <span className="text-xs font-normal text-ink-muted">{p.unit}</span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-4 px-4">
                           {isOut ? (
                             <Badge variant="danger" size="sm">Out of Stock</Badge>
                           ) : isLow ? (
@@ -654,43 +655,43 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                             <Badge variant="success" size="sm">In Stock</Badge>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                        <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-emerald-700 hover:bg-emerald-50"
+                            className="w-8 h-8 p-0 rounded-lg text-emerald-700 hover:bg-emerald-50"
                             onClick={() => handleOpenAdjust(p, 'add')}
                             title="Add stock rolls"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-rose-700 hover:bg-rose-50"
+                            className="w-8 h-8 p-0 rounded-lg text-rose-700 hover:bg-rose-50"
                             onClick={() => handleOpenAdjust(p, 'subtract')}
                             title="Subtract stock rolls"
                             disabled={p.stock <= 0}
                           >
-                            <Minus className="w-3.5 h-3.5" />
+                            <Minus className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-ink-muted hover:text-ink"
+                            className="w-8 h-8 p-0 rounded-lg text-ink-muted hover:text-ink"
                             onClick={() => handleOpenEditProduct(p)}
                             title="Edit wallpaper"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-status-danger hover:bg-status-dangerLight"
+                            className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
                             onClick={() => setProductToDelete(p)}
                             title="Delete wallpaper (Admin Protected)"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </td>
                       </tr>
