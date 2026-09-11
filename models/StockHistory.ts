@@ -47,6 +47,7 @@ const StockHistorySchema = new Schema<IStockHistory>(
         'Opening Stock',
         'Adjustment',
         'Restock',
+        'Purchased',
         'Damage',
         'Correction',
         'Return',

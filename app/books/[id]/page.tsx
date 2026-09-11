@@ -327,29 +327,63 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
     setBulkSubmitting(true);
     try {
+      // Explicitly attach warehouseId to every item in the payload
+      const payloadItems = bulkRows.map((row) => ({
+        code: String(row.code || '').trim(),
+        qty: Number(row.qty) || 0,
+        size: row.size || '0.53m x 10m',
+        price: Number(row.price) || 0,
+        warehouseId: bulkWarehouseId || undefined,
+      }));
+
+      const payload = {
+        bookId: params.id,
+        warehouseId: bulkWarehouseId || undefined,
+        items: payloadItems,
+      };
+
+      console.log(`🚀 [Bulk Import] Dispatching payload (${payloadItems.length} rows):`, payload);
+
       const res = await fetch('/api/products/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookId: params.id,
-          warehouseId: bulkWarehouseId || undefined,
-          items: bulkRows,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
+      console.log('📥 [Bulk Import] Response from server:', { status: res.status, ok: res.ok, data: json });
+
       if (!res.ok || !json.success) {
-        toast.error('Bulk import failed', { description: json.error });
+        const errorMsg = json.error || 'Failed to complete bulk import';
+        toast.error('Bulk import failed', {
+          description: errorMsg,
+          duration: 8000,
+        });
         setBulkSubmitting(false);
         return;
       }
 
-      toast.success(json.message);
+      if (json.failedCount > 0) {
+        const skippedDetails = (json.failedRows || [])
+          .slice(0, 3)
+          .map((r: { row: number; code: string; error: string }) => `Row ${r.row} (${r.code}): ${r.error}`)
+          .join('; ');
+
+        toast.warning(json.message, {
+          description: skippedDetails,
+          duration: 9000,
+        });
+      } else {
+        toast.success(json.message);
+      }
+
       setIsBulkModalOpen(false);
       setBulkRows([]);
       fetchData();
-    } catch {
-      toast.error('Network error during bulk import');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Network error during bulk import';
+      console.error('❌ [Bulk Import] Network or client error:', err);
+      toast.error('Network error during bulk import', { description: errMsg });
     } finally {
       setBulkSubmitting(false);
     }
