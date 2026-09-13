@@ -12,6 +12,7 @@ import {
   buildWpNumberRegex,
   escapeRegex,
 } from '@/lib/searchUtils';
+import { maskPartyListForUser, maskPartyForUser } from '@/lib/partyAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
         $or: customerConditions,
       })
         .limit(5)
-        .select('name code mobile city')
+        .select('name code mobile city type')
         .lean(),
 
       Product.find({
@@ -87,13 +88,27 @@ export async function GET(request: NextRequest) {
       $or: invoiceOrConditions,
     })
       .limit(5)
-      .populate('customerId', 'name mobile')
+      .populate('customerId', 'name mobile code city type')
       .select('number total remaining date customerId')
       .lean();
 
+    const maskedCustomers = maskPartyListForUser(customers, session);
+    const safeInvoices = invoices.map((inv) => {
+      if (inv.customerId && typeof inv.customerId === 'object') {
+        const custObj = inv.customerId as unknown as Record<string, unknown>;
+        if (custObj.type === 'supplier' && session.role !== 'admin') {
+          return {
+            ...inv,
+            customerId: maskPartyForUser(custObj, session),
+          };
+        }
+      }
+      return inv;
+    });
+
     return NextResponse.json({
       success: true,
-      data: { customers, products, invoices },
+      data: { customers: maskedCustomers, products, invoices: safeInvoices },
     });
   } catch (error) {
     console.error('Global search error:', error);

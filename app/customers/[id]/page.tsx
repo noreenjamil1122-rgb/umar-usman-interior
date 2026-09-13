@@ -19,21 +19,24 @@ import {
   ArrowLeft,
   RefreshCw,
   Edit2,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PartyField } from '@/components/customers/PartyField';
 
 interface CustomerDetail {
   _id: string;
   code: string;
   name: string;
   type: 'customer' | 'supplier';
-  mobile: string;
+  mobile?: string;
   whatsapp?: string;
   alt?: string;
   address?: string;
   city?: string;
   notes?: string;
   dateAdded: string;
+  locked?: boolean;
 }
 
 interface InvoiceItem {
@@ -65,7 +68,15 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     totalPaid: 0,
     outstandingBalance: 0,
   });
+  const [supplierUnlocked, setSupplierUnlocked] = useState(false);
+  const [isSupplierAuthOpen, setIsSupplierAuthOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('supplier_unlocked') === 'true') {
+      setSupplierUnlocked(true);
+    }
+  }, []);
 
   // Edit Customer Modal
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -92,7 +103,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const fetchCustomer = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/customers/${params.id}`);
+      const res = await fetch(`/api/customers/${params.id}`, {
+        headers: {
+          'x-supplier-unlocked': supplierUnlocked ? 'true' : 'false',
+        },
+      });
       const json = await res.json();
       if (json.success && json.data) {
         setCustomer(json.data.customer);
@@ -112,14 +127,25 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     fetchCustomer();
-  }, [params.id]);
+  }, [params.id, supplierUnlocked]);
+
+  const handleSupplierAuthorized = () => {
+    setSupplierUnlocked(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('supplier_unlocked', 'true');
+    }
+    setIsSupplierAuthOpen(false);
+    toast.success('Supplier Unlocked');
+  };
+
+  const isLocked = customer?.type === 'supplier' && !supplierUnlocked;
 
   const handleOpenEdit = () => {
-    if (!customer) return;
+    if (!customer || isLocked) return;
     setEditForm({
       name: customer.name,
       type: customer.type || 'customer',
-      mobile: customer.mobile,
+      mobile: customer.mobile || '',
       whatsapp: customer.whatsapp || '',
       alt: customer.alt || '',
       address: customer.address || '',
@@ -131,6 +157,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) return;
     setEditLoading(true);
     try {
       const res = await fetch(`/api/customers/${params.id}`, {
@@ -158,6 +185,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   // Trigger Add Payment flow (protected)
   const handleOpenPaymentPrompt = () => {
+    if (isLocked) return;
     setIsAuthOpen(true);
   };
 
@@ -336,35 +364,67 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="md"
-            className="min-h-[42px]"
-            onClick={printStatementInNewTab}
-            leftIcon={<Printer className="w-4 h-4" />}
-          >
-            Print Statement
-          </Button>
+          {!isLocked ? (
+            <>
+              {customer?.type === 'supplier' && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  className="min-h-[42px] text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => {
+                    setSupplierUnlocked(false);
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.removeItem('supplier_unlocked');
+                    }
+                    toast.info('Supplier re-locked');
+                  }}
+                  leftIcon={<Lock className="w-4 h-4" />}
+                >
+                  Lock Supplier
+                </Button>
+              )}
 
-          <Button
-            variant="brass"
-            size="md"
-            className="min-h-[42px]"
-            onClick={handleOpenPaymentPrompt}
-            leftIcon={<CreditCard className="w-4 h-4" />}
-          >
-            Add Payment
-          </Button>
+              <Button
+                variant="outline"
+                size="md"
+                className="min-h-[42px]"
+                onClick={printStatementInNewTab}
+                leftIcon={<Printer className="w-4 h-4" />}
+              >
+                Print Statement
+              </Button>
 
-          <Link href={`/invoices/new?customerId=${params.id}`}>
-            <Button variant="teal" size="md" className="min-h-[42px] sm:min-h-[44px]" leftIcon={<Plus className="w-4 h-4" />}>
-              New Invoice
+              <Button
+                variant="brass"
+                size="md"
+                className="min-h-[42px]"
+                onClick={handleOpenPaymentPrompt}
+                leftIcon={<CreditCard className="w-4 h-4" />}
+              >
+                Add Payment
+              </Button>
+
+              <Link href={`/invoices/new?customerId=${params.id}`}>
+                <Button variant="teal" size="md" className="min-h-[42px] sm:min-h-[44px]" leftIcon={<Plus className="w-4 h-4" />}>
+                  New Invoice
+                </Button>
+              </Link>
+
+              <Button variant="outline" size="md" className="min-h-[42px]" onClick={handleOpenEdit} leftIcon={<Edit2 className="w-4 h-4" />}>
+                Edit
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="brass"
+              size="md"
+              className="min-h-[42px]"
+              onClick={() => setIsSupplierAuthOpen(true)}
+              leftIcon={<Lock className="w-4 h-4" />}
+            >
+              Enter Supplier PIN to Unlock
             </Button>
-          </Link>
-
-          <Button variant="outline" size="md" className="min-h-[42px]" onClick={handleOpenEdit} leftIcon={<Edit2 className="w-4 h-4" />}>
-            Edit
-          </Button>
+          )}
         </div>
       </div>
 
@@ -375,72 +435,115 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         </div>
       ) : (
         <div className="space-y-6 sm:space-y-8">
+          {/* Supplier Locked Alert Banner */}
+          {isLocked && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-warm">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 bg-amber-100 rounded-xl text-amber-700 shrink-0">
+                  <Lock className="w-5 h-5 text-amber-700" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-amber-950">Supplier Information Locked</h3>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    This party is registered as a supplier. Sensitive contact information, purchase history, ledger details, and outstanding balances are protected. Enter the Supplier PIN to unlock.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="brass"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setIsSupplierAuthOpen(true)}
+                leftIcon={<Lock className="w-4 h-4" />}
+              >
+                Unlock with PIN
+              </Button>
+            </div>
+          )}
+
           {/* Summary Stat Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
             <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-teal">
               <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Total Purchase</div>
               <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">
-                {formatCurrency(stats.totalInvoiced)}
+                {isLocked ? (
+                  <span className="text-base sm:text-lg font-bold text-amber-800 inline-flex items-center gap-1.5">
+                    <Lock className="w-4 h-4 text-amber-600" /> Locked
+                  </span>
+                ) : (
+                  formatCurrency(stats.totalInvoiced)
+                )}
               </div>
               <div className="text-xs text-ink-muted mt-1">
-                {invoices.length} billing invoice(s)
+                {isLocked ? 'Admin access required' : `${invoices.length} billing invoice(s)`}
               </div>
             </Card>
 
             <Card className="p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 border-l-emerald-600">
               <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Total Paid</div>
               <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 mt-1.5">
-                {formatCurrency(stats.totalPaid)}
+                {isLocked ? (
+                  <span className="text-base sm:text-lg font-bold text-amber-800 inline-flex items-center gap-1.5">
+                    <Lock className="w-4 h-4 text-amber-600" /> Locked
+                  </span>
+                ) : (
+                  formatCurrency(stats.totalPaid)
+                )}
               </div>
               <div className="text-xs text-ink-muted mt-1">
-                {payments.length} payment voucher(s)
+                {isLocked ? 'Admin access required' : `${payments.length} payment voucher(s)`}
               </div>
             </Card>
 
-            <Card className={`p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 ${stats.outstandingBalance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}`}>
+            <Card className={`p-5 sm:p-6 rounded-2xl shadow-warm border-l-4 ${isLocked ? 'border-l-amber-500' : stats.outstandingBalance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}`}>
               <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Remaining Balance</div>
-              <div className={`text-2xl sm:text-3xl font-black mt-1.5 ${stats.outstandingBalance > 0 ? 'text-status-danger' : 'text-status-success'}`}>
-                {stats.outstandingBalance > 0
-                  ? formatCurrency(stats.outstandingBalance)
-                  : stats.outstandingBalance < 0
-                    ? `Advance ${formatCurrency(Math.abs(stats.outstandingBalance))}`
-                    : 'Clear (0)'}
+              <div className={`text-2xl sm:text-3xl font-black mt-1.5 ${isLocked ? 'text-amber-900' : stats.outstandingBalance > 0 ? 'text-status-danger' : 'text-status-success'}`}>
+                {isLocked ? (
+                  <span className="text-base sm:text-lg font-bold text-amber-800 inline-flex items-center gap-1.5">
+                    <Lock className="w-4 h-4 text-amber-600" /> Locked
+                  </span>
+                ) : stats.outstandingBalance > 0 ? (
+                  formatCurrency(stats.outstandingBalance)
+                ) : stats.outstandingBalance < 0 ? (
+                  `Advance ${formatCurrency(Math.abs(stats.outstandingBalance))}`
+                ) : (
+                  'Clear (0)'
+                )}
               </div>
               <div className="text-xs text-ink-muted mt-1">
-                {stats.outstandingBalance > 0 ? 'Udhar recovery pending' : 'No balance due'}
+                {isLocked ? 'Admin access required' : stats.outstandingBalance > 0 ? 'Udhar recovery pending' : 'No balance due'}
               </div>
             </Card>
 
             <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
               <div className="text-xs font-bold text-ink-muted uppercase tracking-wider">Contact &amp; City</div>
               <div className="text-base sm:text-lg font-bold text-ink mt-1.5 truncate">
-                {customer?.mobile}
+                {isLocked ? (
+                  <span className="text-base sm:text-lg font-bold text-amber-800 inline-flex items-center gap-1.5">
+                    <Lock className="w-4 h-4 text-amber-600" /> Locked
+                  </span>
+                ) : (
+                  customer?.mobile || '-'
+                )}
               </div>
               <div className="text-xs text-ink-muted truncate mt-0.5">
-                {customer?.city || 'Lahore'} {customer?.address ? `• ${customer.address}` : ''}
+                {isLocked ? 'Admin access required' : `${customer?.city || 'Lahore'} ${customer?.address ? `• ${customer.address}` : ''}`}
               </div>
             </Card>
           </div>
 
           {/* Contact Details & Notes Card */}
           <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs sm:text-sm">
-              <div>
-                <span className="text-ink-muted block font-medium">Party Type:</span>
-                <span className="font-bold text-ink capitalize text-sm sm:text-base">{customer?.type}</span>
-              </div>
-              <div>
-                <span className="text-ink-muted block font-medium">WhatsApp:</span>
-                <span className="font-bold text-ink font-mono text-sm sm:text-base">{customer?.whatsapp || '-'}</span>
-              </div>
-              <div>
-                <span className="text-ink-muted block font-medium">Alt Contact:</span>
-                <span className="font-bold text-ink font-mono text-sm sm:text-base">{customer?.alt || '-'}</span>
-              </div>
-              <div>
-                <span className="text-ink-muted block font-medium">Internal Notes:</span>
-                <span className="text-ink italic">{customer?.notes || 'No remarks recorded'}</span>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 text-xs sm:text-sm">
+              <PartyField label="Party Type" value={<span className="capitalize font-bold">{customer?.type}</span>} />
+              <PartyField label="Primary Contact" value={customer?.mobile} locked={isLocked} />
+              <PartyField label="WhatsApp" value={customer?.whatsapp} locked={isLocked} />
+              <PartyField
+                label="City & Address"
+                value={customer?.address ? `${customer.address}, ${customer.city || 'Lahore'}` : (customer?.city || 'Lahore')}
+                locked={isLocked}
+              />
+              <PartyField label="Internal Notes" value={customer?.notes || 'No remarks recorded'} locked={isLocked} />
             </div>
           </Card>
 
@@ -452,15 +555,35 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <FileText className="w-4 h-4 text-teal" />
                   <span>Invoice Sales History</span>
                 </CardTitle>
-                <Link href={`/invoices/new?customerId=${params.id}`}>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-teal">
-                    + New Bill
-                  </Button>
-                </Link>
+                {!isLocked && (
+                  <Link href={`/invoices/new?customerId=${params.id}`}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-teal">
+                      + New Bill
+                    </Button>
+                  </Link>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {invoices.length === 0 ? (
+              {isLocked ? (
+                <div className="py-12 text-center text-xs text-ink-muted space-y-3">
+                  <Lock className="w-7 h-7 text-amber-600 mx-auto" />
+                  <div className="text-sm font-bold text-ink">Invoices &amp; Purchase History Locked</div>
+                  <p className="max-w-md mx-auto text-amber-900/80">
+                    Historical purchase invoices and billing records for suppliers are confidential. Enter the Supplier PIN to view ledger statements.
+                  </p>
+                  <div>
+                    <Button
+                      variant="brass"
+                      size="sm"
+                      onClick={() => setIsSupplierAuthOpen(true)}
+                      leftIcon={<Lock className="w-4 h-4" />}
+                    >
+                      Enter Supplier PIN to Unlock
+                    </Button>
+                  </div>
+                </div>
+              ) : invoices.length === 0 ? (
                 <div className="py-8 text-center text-xs text-ink-muted">
                   No invoices generated for this client yet.
                 </div>
@@ -538,7 +661,25 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {payments.length === 0 ? (
+              {isLocked ? (
+                <div className="py-12 text-center text-xs text-ink-muted space-y-3">
+                  <Lock className="w-7 h-7 text-amber-600 mx-auto" />
+                  <div className="text-sm font-bold text-ink">Payment Records Locked</div>
+                  <p className="max-w-md mx-auto text-amber-900/80">
+                    Supplier payment vouchers and financial disbursements are confidential. Enter the Supplier PIN to view records.
+                  </p>
+                  <div>
+                    <Button
+                      variant="brass"
+                      size="sm"
+                      onClick={() => setIsSupplierAuthOpen(true)}
+                      leftIcon={<Lock className="w-4 h-4" />}
+                    >
+                      Enter Supplier PIN to Unlock
+                    </Button>
+                  </div>
+                </div>
+              ) : payments.length === 0 ? (
                 <div className="py-12 text-center text-sm text-ink-muted">
                   No payment vouchers registered for this party.
                 </div>
@@ -729,6 +870,18 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
           </div>
         </form>
       </Modal>
+
+      {/* Supplier Password Prompt Modal */}
+      {isSupplierAuthOpen && (
+        <PasswordPromptModal
+          isOpen={isSupplierAuthOpen}
+          onClose={() => setIsSupplierAuthOpen(false)}
+          onAuthorized={handleSupplierAuthorized}
+          protectionType="supplier"
+          title="Supplier Profile Lock"
+          description="Enter the Supplier Lock password to view vendor contact details, orders, ledger, and balances."
+        />
+      )}
     </AppShell>
   );
 }

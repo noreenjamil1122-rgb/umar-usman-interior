@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { AmountInput } from '@/components/ui/AmountInput';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, roundMoney } from '@/lib/utils';
@@ -822,11 +823,11 @@ export default function NewInvoicePage() {
                             <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                               Qty (Rolls)
                             </label>
-                            <input
-                              type="number"
-                              min="1"
+                            <AmountInput
+                              min={1}
+                              allowDecimals={false}
                               value={item.qty}
-                              onChange={(e) => handleUpdateWallpaperQty(index, Number(e.target.value))}
+                              onChange={(val) => handleUpdateWallpaperQty(index, val)}
                               className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-center focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
                             />
                           </div>
@@ -836,12 +837,11 @@ export default function NewInvoicePage() {
                             <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                               Price (Rs.)
                             </label>
-                            <input
-                              type="number"
-                              min="0"
+                            <AmountInput
+                              min={0}
                               value={item.rate}
-                              onChange={(e) => handleUpdateWallpaperRate(index, Number(e.target.value))}
-                              className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-right focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
+                              onChange={(val) => handleUpdateWallpaperRate(index, val)}
+                              className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-right focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 font-mono"
                             />
                           </div>
 
@@ -947,11 +947,11 @@ export default function NewInvoicePage() {
                           <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                             Qty
                           </label>
-                          <input
-                            type="number"
-                            min="1"
+                          <AmountInput
+                            min={1}
+                            allowDecimals={false}
                             value={item.qty}
-                            onChange={(e) => handleUpdateOtherQty(index, Number(e.target.value))}
+                            onChange={(val) => handleUpdateOtherQty(index, val)}
                             className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-center focus:outline-none focus:border-brass-dark focus:ring-2 focus:ring-brass/20"
                           />
                         </div>
@@ -961,12 +961,11 @@ export default function NewInvoicePage() {
                           <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                             Price (Rs.)
                           </label>
-                          <input
-                            type="number"
-                            min="0"
+                          <AmountInput
+                            min={0}
                             value={item.rate}
-                            onChange={(e) => handleUpdateOtherRate(index, Number(e.target.value))}
-                            className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-right focus:outline-none focus:border-brass-dark focus:ring-2 focus:ring-brass/20"
+                            onChange={(val) => handleUpdateOtherRate(index, val)}
+                            className="w-full min-h-[44px] px-3 py-2 bg-paper-light border border-warm-border rounded-xl text-sm sm:text-base font-bold text-ink text-right focus:outline-none focus:border-brass-dark focus:ring-2 focus:ring-brass/20 font-mono"
                           />
                         </div>
 
@@ -1053,12 +1052,11 @@ export default function NewInvoicePage() {
               <div className="space-y-2 pb-3 border-b border-warm-borderLight">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-ink-muted font-medium">Discount (Rs.):</span>
-                  <input
-                    type="number"
-                    min="0"
+                  <AmountInput
+                    min={0}
                     placeholder="0"
-                    value={discountRs || ''}
-                    onChange={(e) => setDiscountRs(Number(e.target.value))}
+                    value={discountRs}
+                    onChange={(val) => setDiscountRs(val)}
                     className="w-28 min-h-[38px] px-3 py-1.5 bg-paper border border-warm-border rounded-xl text-right text-sm font-bold text-ink focus:outline-none focus:border-teal font-mono"
                   />
                 </div>
@@ -1084,11 +1082,10 @@ export default function NewInvoicePage() {
                   </label>
                   {taxOn && (
                     <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="0"
+                      <AmountInput
+                        min={0}
                         value={taxRate}
-                        onChange={(e) => setTaxRate(Number(e.target.value))}
+                        onChange={(val) => setTaxRate(val)}
                         className="w-16 min-h-[36px] px-2.5 py-1 bg-paper border border-warm-border rounded-xl text-right text-sm font-bold text-ink"
                       />
                       <span className="text-sm text-ink-muted font-medium">%</span>
@@ -1149,19 +1146,17 @@ export default function NewInvoicePage() {
                   </div>
                 </div>
 
-                <input
-                  type="number"
-                  min="0"
-                  value={paidAmount || ''}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
+                <AmountInput
+                  min={0}
+                  value={paidAmount}
+                  onChange={(val) => {
                     setPaidAmount(val);
                     if (val >= total && total > 0) {
                       setJobStatus('Fully Paid');
                     }
                   }}
                   placeholder="Enter advance or cash amount"
-                  className="w-full min-h-[44px] px-3.5 py-2.5 bg-paper-light border border-warm-border rounded-xl text-base font-bold text-status-success focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 bg-paper-light border border-warm-border rounded-xl text-base font-bold text-status-success focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none font-mono"
                 />
 
                 {/* Job Stage / Order Progress */}

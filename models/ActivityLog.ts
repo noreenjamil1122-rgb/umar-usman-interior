@@ -10,7 +10,9 @@ export type ActivityType =
   | 'Invoice Deleted'
   | 'Payment Recorded'
   | 'Payment Edited'
-  | 'Payment Deleted';
+  | 'Payment Deleted'
+  | 'Invoice Return Processed'
+  | 'Refund Payout Recorded';
 
 export interface IActivityLog extends Document {
   userId: mongoose.Types.ObjectId;
@@ -49,6 +51,8 @@ const ActivityLogSchema = new Schema<IActivityLog>(
         'Payment Recorded',
         'Payment Edited',
         'Payment Deleted',
+        'Invoice Return Processed',
+        'Refund Payout Recorded',
       ],
       index: true,
     },

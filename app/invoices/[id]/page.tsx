@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { AmountInput } from '@/components/ui/AmountInput';
 import { formatCurrency, formatDate, formatDateTime, roundMoney } from '@/lib/utils';
 import {
   FileText,
@@ -20,9 +21,12 @@ import {
   Edit,
   Trash2,
   Lock,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
+import { ReturnModal } from '@/components/invoices/ReturnModal';
+import { RefundPayoutModal } from '@/components/invoices/RefundPayoutModal';
 
 interface InvoiceDetail {
   _id: string;
@@ -42,12 +46,15 @@ interface InvoiceDetail {
     code: string;
   };
   items: Array<{
+    _id?: string;
     productId: string;
     wp: string;
     design: string;
     qty: number;
     rate: number;
     amount: number;
+    returned_quantity?: number;
+    is_fully_returned?: boolean;
   }>;
   subtotal: number;
   discount: number;
@@ -55,11 +62,36 @@ interface InvoiceDetail {
   total: number;
   paid: number;
   remaining: number;
+  returned_amount_total?: number;
   method: string;
   jobStatus?: string;
   createdByRole?: string;
   createdByName?: string;
   notes?: string;
+}
+
+interface ReturnRecord {
+  _id: string;
+  returnRef: string;
+  returnDate: string;
+  returnedQuantity: number;
+  remainingQuantity: number;
+  unitPrice: number;
+  returnAmount: number;
+  condition: string;
+  refundStatus: string;
+  paymentAdjustmentType: string;
+  paymentAdjustmentAmount: number;
+  returnReason?: string;
+  productId?: {
+    _id: string;
+    wp: string;
+    design: string;
+  };
+  processedBy?: {
+    name: string;
+    email: string;
+  };
 }
 
 interface PaymentRecord {
@@ -120,6 +152,12 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
   // Delete Password Modal
   const [isDeleteAuthOpen, setIsDeleteAuthOpen] = useState(false);
 
+  // Returns Module State
+  const [returns, setReturns] = useState<ReturnRecord[]>([]);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isRefundPayoutOpen, setIsRefundPayoutOpen] = useState(false);
+  const [selectedReturnForPayout, setSelectedReturnForPayout] = useState<ReturnRecord | null>(null);
+
   useEffect(() => {
     fetch('/api/auth/session')
       .then((r) => r.json())
@@ -130,6 +168,18 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
       })
       .catch(() => {});
   }, []);
+
+  const fetchReturns = async () => {
+    try {
+      const res = await fetch(`/api/invoices/${params.id}/returns`);
+      const json = await res.json();
+      if (json.success) {
+        setReturns(json.returns || []);
+      }
+    } catch (err) {
+      console.error('Error fetching returns:', err);
+    }
+  };
 
   const fetchInvoice = async () => {
     setLoading(true);
@@ -165,6 +215,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     fetchInvoice();
+    fetchReturns();
   }, [params.id]);
 
   const confirmDeleteInvoice = async () => {
@@ -196,6 +247,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
 Quotation / Invoice: ${invoice.number}
 Date: ${formatDate(invoice.date)}
 Customer: ${invoice.customerId?.name} (${invoice.customerId?.mobile})
+Seller / Sales Officer: ${invoice.sellerName || 'Umar Nawaz'} (${invoice.sellerContact || '0300-4131532'})
 Total: Rs. ${invoice.total.toLocaleString()}
 Paid: Rs. ${invoice.paid.toLocaleString()}
 Balance Due: Rs. ${invoice.remaining.toLocaleString()}
@@ -422,6 +474,13 @@ Reference: ${invoice.reference || '-'}`;
   }
 
   const isPaid = invoice.remaining <= 0;
+  const allItemsFullyReturned = Boolean(
+    invoice.items &&
+      invoice.items.length > 0 &&
+      invoice.items.every(
+        (it) => it.is_fully_returned || (Number(it.returned_quantity) || 0) >= Number(it.qty)
+      )
+  );
 
   return (
     <AppShell title={`Invoice ${invoice.number}`}>
@@ -503,6 +562,28 @@ Reference: ${invoice.reference || '-'}`;
             Print (A4)
           </Button>
 
+          <Button
+            variant="outline"
+            size="md"
+            className={`min-h-[42px] ${
+              allItemsFullyReturned
+                ? 'opacity-50 cursor-not-allowed border-warm-border text-ink-muted'
+                : 'text-amber-800 border-amber-300 hover:bg-amber-50'
+            }`}
+            onClick={() => {
+              if (!allItemsFullyReturned) setIsReturnModalOpen(true);
+            }}
+            disabled={allItemsFullyReturned}
+            title={
+              allItemsFullyReturned
+                ? 'All items on this invoice have already been returned'
+                : 'Process item return'
+            }
+            leftIcon={<RotateCcw className="w-4 h-4" />}
+          >
+            Return Items
+          </Button>
+
           {userRole === 'admin' && (
             <>
               <Button
@@ -560,15 +641,15 @@ Reference: ${invoice.reference || '-'}`;
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         {/* Left 2 Cols: Customer and Line Items */}
         <div className="lg:col-span-2 space-y-6 sm:space-y-8">
-          {/* Customer Profile Box */}
+          {/* Customer & Seller Profile Box */}
           <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
             <CardHeader className="p-0 pb-4">
-              <CardTitle>Customer Information</CardTitle>
+              <CardTitle>Party &amp; Sales Representative Information</CardTitle>
             </CardHeader>
             <CardContent className="p-0 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs sm:text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
                 <div>
-                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Name</div>
+                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Customer</div>
                   <div className="text-base font-bold text-ink mt-1">{invoice.customerId?.name}</div>
                   <div className="text-teal font-mono text-xs font-bold mt-0.5">
                     {invoice.customerId?.code}
@@ -576,7 +657,7 @@ Reference: ${invoice.reference || '-'}`;
                 </div>
 
                 <div>
-                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Phone</div>
+                  <div className="text-ink-muted uppercase font-bold text-xs tracking-wider">Customer Phone</div>
                   <div className="font-bold text-ink mt-1 text-sm sm:text-base">{invoice.customerId?.mobile}</div>
                   {invoice.customerId?.whatsapp && (
                     <div className="text-emerald-700 text-xs font-semibold mt-0.5">
@@ -591,6 +672,18 @@ Reference: ${invoice.reference || '-'}`;
                     {invoice.customerId?.address || 'Lahore'}
                   </div>
                   <div className="text-ink-muted text-xs mt-0.5">{invoice.customerId?.city || 'Lahore'}</div>
+                </div>
+
+                <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200/80">
+                  <div className="text-amber-900 uppercase font-bold text-[11px] tracking-wider">
+                    Seller / Sales Officer
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-ink mt-1">
+                    {invoice.sellerName || 'Umar Nawaz'}
+                  </div>
+                  <div className="text-teal font-mono text-xs font-bold mt-0.5">
+                    {invoice.sellerContact || '0300-4131532'}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -618,7 +711,15 @@ Reference: ${invoice.reference || '-'}`;
                     <tr key={idx} className="hover:bg-paper/50 transition-colors">
                       <td className="py-4 px-4 font-mono font-bold text-teal text-sm sm:text-base">WP {item.wp}</td>
                       <td className="py-4 px-4 font-semibold text-ink">{item.design}</td>
-                      <td className="py-4 px-4 text-center font-bold">{item.qty} Rolls</td>
+                      <td className="py-4 px-4 text-center font-bold">
+                        <div>{item.qty} Rolls</div>
+                        {(Number(item.returned_quantity) || 0) > 0 && (
+                          <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                            <RotateCcw className="w-2.5 h-2.5" />
+                            {item.is_fully_returned ? 'Fully Returned' : `Ret: ${item.returned_quantity}`}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-4 px-4 text-right font-medium text-ink">
                         {formatCurrency(item.rate)}
                       </td>
@@ -631,6 +732,136 @@ Reference: ${invoice.reference || '-'}`;
               </table>
             </CardContent>
           </Card>
+
+          {/* Invoice Returns & Credit Notes Card */}
+          <Card className="rounded-2xl shadow-warm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>Invoice Returns &amp; Credit Notes</CardTitle>
+                    {returns.length > 0 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                        {returns.length} {returns.length === 1 ? 'Return' : 'Returns'}
+                      </span>
+                    )}
+                  </div>
+                  <CardDescription>Line item returns, stock adjustments, and refund ledger</CardDescription>
+                </div>
+                {!allItemsFullyReturned && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[34px] text-xs font-semibold px-3 text-amber-800 border-amber-300 hover:bg-amber-50"
+                    onClick={() => setIsReturnModalOpen(true)}
+                    leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+                  >
+                    + Process Return
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {returns.length === 0 ? (
+                <div className="p-6 text-center text-sm text-ink-muted">
+                  No return records for this invoice yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-semibold text-xs">
+                      <tr>
+                        <th className="py-3.5 px-4">Return Ref</th>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4">Item Details</th>
+                        <th className="py-3.5 px-4 text-center">Returned Qty</th>
+                        <th className="py-3.5 px-4 text-right">Return Value</th>
+                        <th className="py-3.5 px-4 text-center">Stock Condition</th>
+                        <th className="py-3.5 px-4 text-center">Refund Status</th>
+                        <th className="py-3.5 px-4">Processed By</th>
+                        <th className="py-3.5 px-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-warm-borderLight">
+                      {returns.map((ret) => (
+                        <tr key={ret._id} className="hover:bg-paper/50 transition-colors">
+                          <td className="py-4 px-4 font-mono font-bold text-teal text-xs sm:text-sm whitespace-nowrap">
+                            {ret.returnRef}
+                          </td>
+                          <td className="py-4 px-4 text-ink-muted whitespace-nowrap">
+                            {formatDateTime(ret.returnDate)}
+                          </td>
+                          <td className="py-4 px-4 text-ink font-medium">
+                            {ret.productId ? `WP ${ret.productId.wp} (${ret.productId.design})` : 'Line Item'}
+                            {ret.returnReason && (
+                              <span className="block text-[11px] text-ink-muted italic mt-0.5">
+                                Reason: {ret.returnReason}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-4 text-center font-bold text-ink whitespace-nowrap">
+                            {ret.returnedQuantity} Rolls
+                          </td>
+                          <td className="py-4 px-4 text-right font-extrabold text-status-danger whitespace-nowrap">
+                            {formatCurrency(ret.returnAmount)}
+                          </td>
+                          <td className="py-4 px-4 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                ret.condition === 'accepted_to_stock'
+                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                  : ret.condition === 'damaged'
+                                  ? 'bg-red-50 text-red-800 border border-red-200'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-200'
+                              }`}
+                            >
+                              {ret.condition.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                ret.refundStatus === 'refunded'
+                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                  : ret.refundStatus === 'pending'
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  : ret.refundStatus === 'credited'
+                                  ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                                  : 'bg-paper text-ink-muted border border-warm-border'
+                              }`}
+                            >
+                              {ret.refundStatus.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-ink-muted text-xs whitespace-nowrap">
+                            {ret.processedBy?.name || 'Staff'}
+                          </td>
+                          <td className="py-4 px-4 text-right whitespace-nowrap">
+                            {ret.refundStatus === 'pending' ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedReturnForPayout(ret);
+                                  setIsRefundPayoutOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors shadow-sm"
+                                title="Record actual payout to customer"
+                              >
+                                Record Payout
+                              </button>
+                            ) : (
+                              <span className="text-ink-muted text-xs font-medium">Settled</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Payment Receipts History */}
           <Card className="rounded-2xl shadow-warm">
             <CardHeader className="pb-4">
@@ -751,6 +982,13 @@ Reference: ${invoice.reference || '-'}`;
                 </div>
               )}
 
+              {(Number(invoice.returned_amount_total) || 0) > 0 && (
+                <div className="flex justify-between pb-2.5 border-b border-warm-borderLight text-status-danger font-medium">
+                  <span>Returns Deducted:</span>
+                  <span className="font-bold">- {formatCurrency(invoice.returned_amount_total || 0)}</span>
+                </div>
+              )}
+
               <div className="p-4 bg-paper rounded-2xl border border-warm-border flex justify-between items-center shadow-warm">
                 <span className="font-extrabold text-ink uppercase text-xs sm:text-sm tracking-wider">Grand Total:</span>
                 <span className="text-lg sm:text-xl font-extrabold text-teal">{formatCurrency(invoice.total)}</span>
@@ -801,13 +1039,12 @@ Reference: ${invoice.reference || '-'}`;
         description={`Current balance: ${formatCurrency(invoice.remaining)}`}
       >
         <form onSubmit={handleRecordPayment} className="space-y-4">
-          <Input
+          <AmountInput
             label="Payment Amount (PKR)"
-            type="number"
-            min="0.01"
+            min={0.01}
             required
             value={paymentAmount}
-            onChange={(e) => setPaymentAmount(Number(e.target.value))}
+            onChange={(val) => setPaymentAmount(val)}
           />
 
           <div className="space-y-1.5">
@@ -956,13 +1193,12 @@ Reference: ${invoice.reference || '-'}`;
               + Add Dated Payment (Optional)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input
+              <AmountInput
                 label="Amount (PKR)"
-                type="number"
-                min="0"
-                value={editFormData.addPaymentAmount || ''}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, addPaymentAmount: Number(e.target.value) })
+                min={0}
+                value={editFormData.addPaymentAmount}
+                onChange={(val) =>
+                  setEditFormData({ ...editFormData, addPaymentAmount: val })
                 }
               />
               <Input
@@ -1052,14 +1288,13 @@ Reference: ${invoice.reference || '-'}`;
           description="Update recorded payment details. Invoice balance will be recalculated automatically."
         >
           <form onSubmit={handleSavePaymentEdit} className="space-y-4">
-            <Input
+            <AmountInput
               label="Payment Amount (PKR)"
-              type="number"
-              min="0.01"
+              min={0.01}
               required
-              value={editPaymentFormData.amount || ''}
-              onChange={(e) =>
-                setEditPaymentFormData({ ...editPaymentFormData, amount: Number(e.target.value) })
+              value={editPaymentFormData.amount}
+              onChange={(val) =>
+                setEditPaymentFormData({ ...editPaymentFormData, amount: val })
               }
             />
 
@@ -1167,6 +1402,36 @@ Reference: ${invoice.reference || '-'}`;
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Return Items Modal */}
+      <ReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        invoiceId={params.id}
+        onSuccess={() => {
+          fetchInvoice();
+          fetchReturns();
+        }}
+      />
+
+      {/* Record Refund Payout Modal */}
+      {selectedReturnForPayout && (
+        <RefundPayoutModal
+          isOpen={isRefundPayoutOpen}
+          onClose={() => {
+            setIsRefundPayoutOpen(false);
+            setSelectedReturnForPayout(null);
+          }}
+          returnRef={selectedReturnForPayout.returnRef}
+          defaultAmount={
+            selectedReturnForPayout.paymentAdjustmentAmount || selectedReturnForPayout.returnAmount
+          }
+          onSuccess={() => {
+            fetchInvoice();
+            fetchReturns();
+          }}
+        />
       )}
     </AppShell>
   );

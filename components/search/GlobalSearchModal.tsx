@@ -11,7 +11,7 @@ export function GlobalSearchModal() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<{
-    customers: Array<{ _id: string; name: string; code: string; mobile: string; city: string }>;
+    customers: Array<{ _id: string; name: string; code: string; mobile?: string; city?: string; type?: string; locked?: boolean }>;
     products: Array<{ _id: string; wp: string; design: string; brand: string; salePrice: number; stock: number }>;
     invoices: Array<{ _id: string; number: string; total: number; remaining: number; customerId: { name: string } }>;
   }>({ customers: [], products: [], invoices: [] });
@@ -140,16 +140,27 @@ export function GlobalSearchModal() {
                     key={c._id}
                     onClick={() => {
                       setIsOpen(false);
-                      router.push(`/customers?id=${c._id}`);
+                      router.push(`/customers/${c._id}`);
                     }}
                     className="flex items-center justify-between p-2.5 rounded-lg hover:bg-paper cursor-pointer border border-transparent hover:border-warm-border transition-colors group"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-ink group-hover:text-teal transition-colors">
-                        {c.name}
+                      <div className="text-sm font-semibold text-ink group-hover:text-teal transition-colors flex items-center gap-2">
+                        <span>{c.name}</span>
+                        {c.locked && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                            🔒 Locked
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-ink-muted">
-                        {c.code} • {c.mobile} {c.city && `• ${c.city}`}
+                        {c.locked ? (
+                          <span className="text-amber-700 font-medium">
+                            {c.code} • 🔒 Admin access required
+                          </span>
+                        ) : (
+                          `${c.code} • ${c.mobile || ''} ${c.city ? `• ${c.city}` : ''}`
+                        )}
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-ink-muted group-hover:text-teal group-hover:translate-x-0.5 transition-all" />

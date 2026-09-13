@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IInvoiceItem {
+  _id?: mongoose.Types.ObjectId;
   productId?: mongoose.Types.ObjectId;
   wp: string;
   design: string;
@@ -8,6 +9,8 @@ export interface IInvoiceItem {
   rate: number;
   amount: number;
   isCustom?: boolean;
+  returned_quantity?: number;
+  is_fully_returned?: boolean;
 }
 
 export interface IInvoice extends Document {
@@ -23,6 +26,7 @@ export interface IInvoice extends Document {
   total: number;
   paid: number;
   remaining: number;
+  returned_amount_total?: number;
   method: string;
   jobStatus: string;
   reference?: string;
@@ -39,6 +43,10 @@ export interface IInvoice extends Document {
 
 const InvoiceItemSchema = new Schema<IInvoiceItem>(
   {
+    _id: {
+      type: Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
+    },
     productId: {
       type: Schema.Types.ObjectId,
       ref: 'Product',
@@ -50,8 +58,10 @@ const InvoiceItemSchema = new Schema<IInvoiceItem>(
     rate: { type: Number, required: true, min: 0 },
     amount: { type: Number, required: true, min: 0 },
     isCustom: { type: Boolean, default: false },
+    returned_quantity: { type: Number, default: 0, min: 0 },
+    is_fully_returned: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: true }
 );
 
 const InvoiceSchema = new Schema<IInvoice>(
@@ -114,6 +124,11 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: Number,
       required: true,
       default: 0,
+    },
+    returned_amount_total: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     method: {
       type: String,

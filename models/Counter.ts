@@ -18,7 +18,7 @@ const CounterSchema = new Schema<ICounter>(
     type: {
       type: String,
       required: true,
-      enum: ['customer', 'product', 'invoice', 'payment', 'book', 'warehouse'],
+      enum: ['customer', 'product', 'invoice', 'payment', 'book', 'warehouse', 'return'],
     },
     year: {
       type: Number,
@@ -34,7 +34,12 @@ const CounterSchema = new Schema<ICounter>(
 
 CounterSchema.index({ userId: 1, type: 1, year: 1 }, { unique: true });
 
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Counter) {
+  delete (mongoose.models as Record<string, unknown>).Counter;
+}
+
 const Counter: Model<ICounter> =
   mongoose.models.Counter || mongoose.model<ICounter>('Counter', CounterSchema);
 
 export default Counter;
+

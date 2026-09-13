@@ -7,6 +7,7 @@ import Invoice from '@/models/Invoice';
 import { CustomerSchema } from '@/lib/validations';
 import { generateFormattedCode } from '@/lib/counters';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
+import { maskPartyListForUser, isAdmin } from '@/lib/partyAccess';
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,9 +94,17 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const isSupplierUnlocked =
+      session.role === 'admin' ||
+      request.headers.get('x-supplier-unlocked') === 'true' ||
+      searchParams.get('unlocked') === 'true';
+
+    const effectiveUser = isSupplierUnlocked ? { ...session, role: 'admin' as const } : session;
+    const maskedCustomers = maskPartyListForUser(customersWithBalances, effectiveUser);
+
     return NextResponse.json({
       success: true,
-      data: customersWithBalances,
+      data: maskedCustomers,
     });
   } catch (error) {
     console.error('Customer GET error:', error);
@@ -118,6 +127,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const isSupplierUnlocked =
+      isAdmin(session) || request.headers.get('x-supplier-unlocked') === 'true';
+
+    if (body.type === 'supplier' && !isSupplierUnlocked) {
+      return NextResponse.json(
+        { success: false, error: 'Supplier information is admin-only.' },
+        { status: 403 }
+      );
+    }
     const validation = CustomerSchema.safeParse(body);
 
     if (!validation.success) {

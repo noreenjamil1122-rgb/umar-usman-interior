@@ -8,6 +8,7 @@ import Payment from '@/models/Payment';
 import { CustomerSchema } from '@/lib/validations';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
 import { logActivity } from '@/lib/activity';
+import { maskPartyForUser, isAdmin } from '@/lib/partyAccess';
 
 interface RouteContext {
   params: { id: string };
@@ -34,27 +35,53 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
 
-    // Invoices and Payments for this customer
-    const [invoices, payments] = await Promise.all([
-      Invoice.find({ userId: userObjectId, customerId }).sort({ date: -1 }).lean(),
-      Payment.find({ userId: userObjectId, customerId }).sort({ date: -1 }).lean(),
-    ]);
+    const isSupplier = customer.type === 'supplier';
+    const isSupplierUnlocked =
+      isAdmin(session) ||
+      request.headers.get('x-supplier-unlocked') === 'true';
+    const locked = isSupplier && !isSupplierUnlocked;
 
-    const totalRemaining = invoices.reduce((acc, inv) => acc + (inv.remaining || 0), 0);
-    const totalInvoiced = invoices.reduce((acc, inv) => acc + (inv.total || 0), 0);
-    const totalPaid = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
+    // Invoices and Payments for this customer (skip querying or hide if locked)
+    let invoices: unknown[] = [];
+    let payments: unknown[] = [];
+    let stats: Record<string, unknown> = {
+      totalInvoiced: null,
+      totalPaid: null,
+      outstandingBalance: null,
+      locked: true,
+    };
+
+    if (!locked) {
+      const [fetchedInvoices, fetchedPayments] = await Promise.all([
+        Invoice.find({ userId: userObjectId, customerId }).sort({ date: -1 }).lean(),
+        Payment.find({ userId: userObjectId, customerId }).sort({ date: -1 }).lean(),
+      ]);
+
+      const totalRemaining = fetchedInvoices.reduce((acc, inv) => acc + (inv.remaining || 0), 0);
+      const totalInvoiced = fetchedInvoices.reduce((acc, inv) => acc + (inv.total || 0), 0);
+      const totalPaid = fetchedPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+
+      invoices = fetchedInvoices;
+      payments = fetchedPayments;
+      stats = {
+        totalInvoiced,
+        totalPaid,
+        outstandingBalance: totalRemaining,
+        locked: false,
+      };
+    }
+
+    const effectiveUser = isSupplierUnlocked ? { ...session, role: 'admin' as const } : session;
+    const maskedCustomer = maskPartyForUser(customer, effectiveUser);
 
     return NextResponse.json({
       success: true,
       data: {
-        customer,
+        customer: maskedCustomer,
         invoices,
         payments,
-        stats: {
-          totalInvoiced,
-          totalPaid,
-          outstandingBalance: totalRemaining,
-        },
+        stats,
+        locked,
       },
     });
   } catch (error) {
@@ -78,6 +105,33 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     const body = await request.json();
+
+    await connectToDatabase();
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
+    const customerId = new mongoose.Types.ObjectId(params.id);
+
+    const existingCustomer = await Customer.findOne({
+      _id: customerId,
+      userId: userObjectId,
+    });
+
+    if (!existingCustomer) {
+      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
+    }
+
+    const isSupplierUnlocked =
+      isAdmin(session) ||
+      request.headers.get('x-supplier-unlocked') === 'true';
+
+    // Block supplier updates for non-admins / locked sessions
+    if ((existingCustomer.type === 'supplier' || body.type === 'supplier') && !isSupplierUnlocked) {
+      return NextResponse.json(
+        { success: false, error: 'Supplier information is admin-only.' },
+        { status: 403 }
+      );
+    }
+
     const validation = CustomerSchema.partial().safeParse(body);
 
     if (!validation.success) {
@@ -87,20 +141,11 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    await connectToDatabase();
-    const businessOwnerId = getEffectiveUserId(session);
-    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
-    const customerId = new mongoose.Types.ObjectId(params.id);
-
     const updatedCustomer = await Customer.findOneAndUpdate(
       { _id: customerId, userId: userObjectId },
       { $set: validation.data },
       { new: true }
     );
-
-    if (!updatedCustomer) {
-      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
-    }
 
     return NextResponse.json({
       success: true,
@@ -131,6 +176,27 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const businessOwnerId = getEffectiveUserId(session);
     const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const customerId = new mongoose.Types.ObjectId(params.id);
+
+    const existingCustomer = await Customer.findOne({
+      _id: customerId,
+      userId: userObjectId,
+    });
+
+    if (!existingCustomer) {
+      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
+    }
+
+    const isSupplierUnlocked =
+      isAdmin(session) ||
+      request.headers.get('x-supplier-unlocked') === 'true';
+
+    // Block supplier deletion for non-admins / locked sessions
+    if (existingCustomer.type === 'supplier' && !isSupplierUnlocked) {
+      return NextResponse.json(
+        { success: false, error: 'Supplier information is admin-only.' },
+        { status: 403 }
+      );
+    }
 
     // Check if customer has associated invoices
     const hasInvoices = await Invoice.exists({ userId: userObjectId, customerId });

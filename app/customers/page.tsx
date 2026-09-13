@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +20,8 @@ import {
   FileText,
   AlertTriangle,
   RefreshCw,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,9 +43,11 @@ interface Customer {
   totalPurchase?: number;
   totalPaid?: number;
   outstandingBalance?: number;
+  locked?: boolean;
 }
 
 function CustomersContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter');
 
@@ -52,6 +56,35 @@ function CustomersContent() {
   const [search, setSearch] = useState('');
   const [partyTypeTab, setPartyTypeTab] = useState<'all' | 'customer' | 'supplier'>('all');
   const [filterDebtOnly, setFilterDebtOnly] = useState(initialFilter === 'debt');
+  const [userRole, setUserRole] = useState<'admin' | 'worker'>('admin');
+  const [supplierUnlocked, setSupplierUnlocked] = useState(false);
+  const [isSupplierAuthOpen, setIsSupplierAuthOpen] = useState(false);
+  const [hasSupplierPassword, setHasSupplierPassword] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check if supplier was previously unlocked in this session
+    if (typeof window !== 'undefined' && sessionStorage.getItem('supplier_unlocked') === 'true') {
+      setSupplierUnlocked(true);
+    }
+
+    fetch('/api/auth/session')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setUserRole(d.user.role || 'admin');
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data) {
+          setHasSupplierPassword(Boolean(d.data.hasSupplierPassword));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Add/Edit modal state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -80,6 +113,42 @@ function CustomersContent() {
   } | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
+  const handleTabChange = (tab: 'all' | 'customer' | 'supplier') => {
+    if (tab === 'supplier') {
+      if (supplierUnlocked) {
+        setPartyTypeTab('supplier');
+        return;
+      }
+      if (hasSupplierPassword === false) {
+        toast.error('Pehle Settings mein password set karein');
+        router.push('/settings');
+        return;
+      }
+      setIsSupplierAuthOpen(true);
+      return;
+    }
+    setPartyTypeTab(tab);
+  };
+
+  const handleLockSupplier = () => {
+    setSupplierUnlocked(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('supplier_unlocked');
+    }
+    setPartyTypeTab('customer');
+    toast.info('Suppliers locked');
+  };
+
+  const handleSupplierAuthorized = () => {
+    setSupplierUnlocked(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('supplier_unlocked', 'true');
+    }
+    setIsSupplierAuthOpen(false);
+    setPartyTypeTab('supplier');
+    toast.success('Suppliers Unlocked');
+  };
+
   const fetchCustomers = async () => {
     setLoading(true);
     try {
@@ -87,7 +156,11 @@ function CustomersContent() {
       if (search.trim()) params.set('q', search.trim());
       if (partyTypeTab !== 'all') params.set('type', partyTypeTab);
 
-      const res = await fetch(`/api/customers?${params.toString()}`);
+      const res = await fetch(`/api/customers?${params.toString()}`, {
+        headers: {
+          'x-supplier-unlocked': supplierUnlocked ? 'true' : 'false',
+        },
+      });
       const json = await res.json();
       if (json.success) {
         setCustomers(json.data);
@@ -103,10 +176,14 @@ function CustomersContent() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [search, partyTypeTab]);
+  }, [search, partyTypeTab, supplierUnlocked]);
 
   // Open Edit modal
   const handleEdit = (c: Customer) => {
+    if (c.type === 'supplier' && !supplierUnlocked) {
+      setIsSupplierAuthOpen(true);
+      return;
+    }
     setEditingCustomer(c);
     setFormData({
       name: c.name,
@@ -126,7 +203,11 @@ function CustomersContent() {
     setViewingCustomer(c);
     setDetailsLoading(true);
     try {
-      const res = await fetch(`/api/customers/${c._id}`);
+      const res = await fetch(`/api/customers/${c._id}`, {
+        headers: {
+          'x-supplier-unlocked': supplierUnlocked ? 'true' : 'false',
+        },
+      });
       const json = await res.json();
       if (json.success) {
         setCustomerDetails(json.data);
@@ -192,9 +273,17 @@ function CustomersContent() {
     }
   };
 
-  const displayedCustomers = filterDebtOnly
-    ? customers.filter((c) => (c.outstandingBalance || 0) > 0)
-    : customers;
+  const displayedCustomers = useMemo(() => {
+    let list = customers;
+    // When supplier lock is active, hide suppliers from the general list unless unlocked
+    if (!supplierUnlocked && partyTypeTab !== 'supplier') {
+      list = list.filter((c) => c.type !== 'supplier');
+    }
+    if (filterDebtOnly) {
+      list = list.filter((c) => (c.outstandingBalance || 0) > 0);
+    }
+    return list;
+  }, [customers, supplierUnlocked, partyTypeTab, filterDebtOnly]);
 
   return (
     <AppShell title="Party Directory">
@@ -217,7 +306,7 @@ function CustomersContent() {
               setEditingCustomer(null);
               setFormData({
                 name: '',
-                type: partyTypeTab === 'supplier' ? 'supplier' : 'customer',
+                type: (partyTypeTab === 'supplier' && supplierUnlocked) ? 'supplier' : 'customer',
                 mobile: '',
                 whatsapp: '',
                 alt: '',
@@ -240,7 +329,7 @@ function CustomersContent() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
             <button
-              onClick={() => setPartyTypeTab('all')}
+              onClick={() => handleTabChange('all')}
               className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
                 partyTypeTab === 'all'
                   ? 'bg-ink text-white shadow-warm'
@@ -250,7 +339,7 @@ function CustomersContent() {
               All Parties
             </button>
             <button
-              onClick={() => setPartyTypeTab('customer')}
+              onClick={() => handleTabChange('customer')}
               className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
                 partyTypeTab === 'customer'
                   ? 'bg-teal text-white shadow-warm'
@@ -260,15 +349,38 @@ function CustomersContent() {
               Customers Only
             </button>
             <button
-              onClick={() => setPartyTypeTab('supplier')}
-              className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors ${
+              onClick={() => handleTabChange('supplier')}
+              className={`min-h-[40px] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors flex items-center gap-1.5 ${
                 partyTypeTab === 'supplier'
                   ? 'bg-brass-dark text-white shadow-warm'
                   : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
               }`}
             >
-              Suppliers Only
+              {supplierUnlocked ? (
+                <Unlock className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <Lock className="w-4 h-4 text-brass-dark" />
+              )}
+              <span>Suppliers Only</span>
+              {!supplierUnlocked && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-warm-border rounded-md text-ink-muted font-bold">
+                  Locked
+                </span>
+              )}
             </button>
+            {partyTypeTab === 'supplier' && supplierUnlocked && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleLockSupplier}
+                className="h-9 px-3 text-xs text-status-danger border-status-danger/30 hover:bg-status-dangerLight flex items-center gap-1.5"
+                title="Lock Suppliers"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Lock</span>
+              </Button>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -334,7 +446,9 @@ function CustomersContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-borderLight">
-                    {displayedCustomers.map((c) => (
+                    {displayedCustomers.map((c) => {
+                      const isRowLocked = c.type === 'supplier' && !supplierUnlocked;
+                      return (
                       <tr key={c._id} className="hover:bg-paper transition-colors">
                         <td className="py-4 px-4 font-mono font-bold text-teal">
                           <Link href={`/customers/${c._id}`} className="hover:underline">
@@ -361,26 +475,59 @@ function CustomersContent() {
                           </Link>
                         </td>
                         <td className="py-4 px-4 space-y-1">
-                          <div className="flex items-center gap-1.5 text-ink font-semibold">
-                            <Phone className="w-3.5 h-3.5 text-ink-muted" />
-                            <span>{c.mobile}</span>
-                          </div>
-                          {c.whatsapp && (
-                            <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>{c.whatsapp}</span>
-                            </div>
+                          {isRowLocked ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200"
+                              title="Supplier PIN required"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Locked</span>
+                            </span>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1.5 text-ink font-semibold">
+                                <Phone className="w-3.5 h-3.5 text-ink-muted" />
+                                <span>{c.mobile}</span>
+                              </div>
+                              {c.whatsapp && (
+                                <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                  <span>{c.whatsapp}</span>
+                                </div>
+                              )}
+                            </>
                           )}
                         </td>
                         <td className="py-4 px-4 text-ink-muted">
-                          <div className="text-ink font-semibold">{c.city || 'Lahore'}</div>
-                          <div className="text-xs truncate max-w-xs">{c.address || '-'}</div>
+                          {isRowLocked ? (
+                            <span className="text-xs text-ink-muted flex items-center gap-1">
+                              <Lock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Hidden</span>
+                            </span>
+                          ) : (
+                            <>
+                              <div className="text-ink font-semibold">{c.city || 'Lahore'}</div>
+                              <div className="text-xs truncate max-w-xs">{c.address || '-'}</div>
+                            </>
+                          )}
                         </td>
                         <td className="py-4 px-4 text-right font-bold text-ink">
-                          {formatCurrency(c.totalPurchase || 0)}
+                          {isRowLocked ? (
+                            <span className="text-xs text-ink-muted font-medium">Locked</span>
+                          ) : (
+                            formatCurrency(c.totalPurchase || 0)
+                          )}
                         </td>
                         <td className="py-4 px-4 text-right">
-                          {(c.outstandingBalance || 0) > 0 ? (
+                          {isRowLocked ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 font-bold text-xs border border-amber-200"
+                              title="Supplier PIN required"
+                            >
+                              <Lock className="w-3 h-3 text-amber-600" />
+                              <span>Locked</span>
+                            </span>
+                          ) : (c.outstandingBalance || 0) > 0 ? (
                             <span className="inline-block px-3 py-1 rounded-lg bg-red-50 text-status-danger font-bold text-xs border border-red-200">
                               {formatCurrency(c.outstandingBalance!)}
                             </span>
@@ -408,32 +555,41 @@ function CustomersContent() {
                           >
                             Quick View
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(c)}
-                            className="w-8 h-8 p-0 rounded-lg text-ink-muted hover:text-ink"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCustomerToDelete(c)}
-                            className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {!isRowLocked && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(c)}
+                                className="w-8 h-8 p-0 rounded-lg text-ink-muted hover:text-ink"
+                                title="Edit party"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setCustomerToDelete(c)}
+                                className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
+                                title="Delete party"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile Card View */}
               <div className="md:hidden divide-y divide-warm-borderLight p-4 space-y-4">
-                {displayedCustomers.map((c) => (
+                {displayedCustomers.map((c) => {
+                  const isRowLocked = c.type === 'supplier' && !supplierUnlocked;
+                  return (
                   <div key={c._id} className="pt-4 first:pt-0 space-y-3 bg-paper p-4 rounded-2xl border border-warm-border shadow-warm">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -455,7 +611,15 @@ function CustomersContent() {
                           <h4 className="text-base font-bold text-ink mt-1.5 hover:text-teal">{c.name}</h4>
                         </Link>
                       </div>
-                      {(c.outstandingBalance || 0) > 0 ? (
+                      {isRowLocked ? (
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 font-bold text-xs border border-amber-200 shrink-0"
+                          title="Supplier PIN required"
+                        >
+                          <Lock className="w-3 h-3 text-amber-600" />
+                          <span>Locked</span>
+                        </span>
+                      ) : (c.outstandingBalance || 0) > 0 ? (
                         <span className="px-2.5 py-1 rounded-lg bg-red-50 text-status-danger font-bold text-xs border border-red-200 shrink-0">
                           {formatCurrency(c.outstandingBalance!)}
                         </span>
@@ -469,17 +633,28 @@ function CustomersContent() {
                     </div>
 
                     <div className="text-sm text-ink-muted space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-teal shrink-0" />
-                        <a href={`tel:${c.mobile}`} className="text-ink font-semibold">
-                          {c.mobile}
-                        </a>
-                      </div>
-                      {c.address && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <MapPin className="w-4 h-4 text-ink-muted shrink-0" />
-                          <span>{c.address}, {c.city || 'Lahore'}</span>
+                      {isRowLocked ? (
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200">
+                            <Lock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Contact &amp; Location Locked</span>
+                          </span>
                         </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-teal shrink-0" />
+                            <a href={`tel:${c.mobile}`} className="text-ink font-semibold">
+                              {c.mobile}
+                            </a>
+                          </div>
+                          {c.address && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <MapPin className="w-4 h-4 text-ink-muted shrink-0" />
+                              <span>{c.address}, {c.city || 'Lahore'}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -489,25 +664,32 @@ function CustomersContent() {
                           Profile &amp; Ledger
                         </Button>
                       </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(c)}
-                        className="w-9 h-9 p-0 rounded-xl text-ink-muted hover:text-ink"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setCustomerToDelete(c)}
-                        className="w-9 h-9 p-0 rounded-xl text-status-danger hover:bg-status-dangerLight"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {!isRowLocked && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(c)}
+                            className="w-9 h-9 p-0 rounded-xl text-ink-muted hover:text-ink"
+                            title="Edit party"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCustomerToDelete(c)}
+                            className="w-9 h-9 p-0 rounded-xl text-status-danger hover:bg-status-dangerLight"
+                            title="Delete party"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -538,14 +720,26 @@ function CustomersContent() {
               </button>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, type: 'supplier' })}
-                className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                onClick={() => {
+                  if (!supplierUnlocked) {
+                    setIsSupplierAuthOpen(true);
+                    return;
+                  }
+                  setFormData({ ...formData, type: 'supplier' });
+                }}
+                className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
                   formData.type === 'supplier'
                     ? 'border-brass bg-brass-light text-brass-dark font-bold'
                     : 'border-warm-border bg-paper text-ink-muted'
                 }`}
               >
-                Supplier (Vendor)
+                {!supplierUnlocked && <Lock className="w-3.5 h-3.5 text-brass-dark" />}
+                <span>Supplier (Vendor)</span>
+                {!supplierUnlocked && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-warm-border text-ink-muted font-bold">
+                    Locked
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -644,13 +838,52 @@ function CustomersContent() {
         isOpen={Boolean(viewingCustomer)}
         onClose={() => setViewingCustomer(null)}
         title={`Ledger Quick View — ${viewingCustomer?.name}`}
-        description={`${viewingCustomer?.code} • ${viewingCustomer?.mobile} • ${viewingCustomer?.city || 'Lahore'}`}
+        description={
+          (viewingCustomer?.type === 'supplier' && !supplierUnlocked)
+            ? `${viewingCustomer?.code} • 🔒 Supplier PIN required`
+            : `${viewingCustomer?.code} • ${viewingCustomer?.mobile || ''} • ${viewingCustomer?.city || 'Lahore'}`
+        }
         maxWidth="xl"
       >
         {detailsLoading ? (
           <div className="py-8 text-center text-xs text-ink-muted">
             <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-teal" />
             Loading financial records...
+          </div>
+        ) : (viewingCustomer?.type === 'supplier' && !supplierUnlocked) ? (
+          <div className="space-y-5 py-2">
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-3">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Lock className="w-4 h-4 text-amber-600" />
+                <span>Supplier Financial Data Locked</span>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Contact information, purchase transactions, and outstanding Udhar balances for suppliers are protected by the Supplier Lock.
+              </p>
+              <Button
+                variant="brass"
+                size="sm"
+                onClick={() => setIsSupplierAuthOpen(true)}
+                leftIcon={<Lock className="w-3.5 h-3.5" />}
+              >
+                Enter Supplier PIN to Unlock
+              </Button>
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-warm-borderLight">
+              <Link href={`/customers/${viewingCustomer._id}`}>
+                <Button variant="outline" size="sm">
+                  View Profile
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingCustomer(null)}
+              >
+                Close
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
@@ -734,6 +967,16 @@ function CustomersContent() {
           </div>
         )}
       </Modal>
+
+      {/* Supplier Unlock Password Modal */}
+      <PasswordPromptModal
+        isOpen={isSupplierAuthOpen}
+        onClose={() => setIsSupplierAuthOpen(false)}
+        title="Unlock Suppliers Directory"
+        actionDescription="Enter the Supplier Lock password to view vendor records, contact info, and supplier balances."
+        protectionType="supplier"
+        onAuthorized={handleSupplierAuthorized}
+      />
     </AppShell>
   );
 }

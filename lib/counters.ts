@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import Counter from '@/models/Counter';
 
-export type CounterType = 'customer' | 'product' | 'invoice' | 'payment' | 'book' | 'warehouse';
+export type CounterType = 'customer' | 'product' | 'invoice' | 'payment' | 'book' | 'warehouse' | 'return';
 
 /**
  * Atomically increments and returns the next sequence number for a given tenant, type, and year.
@@ -10,7 +10,8 @@ export type CounterType = 'customer' | 'product' | 'invoice' | 'payment' | 'book
 export async function getNextSequence(
   userId: string | mongoose.Types.ObjectId,
   type: CounterType,
-  year: number = 0
+  year: number = 0,
+  session?: mongoose.ClientSession
 ): Promise<number> {
   const filter = {
     userId: new mongoose.Types.ObjectId(userId),
@@ -22,11 +23,14 @@ export async function getNextSequence(
     $inc: { seq: 1 },
   };
 
-  const options = {
+  const options: Record<string, unknown> = {
     new: true,
     upsert: true,
     setDefaultsOnInsert: true,
   };
+  if (session) {
+    options.session = session;
+  }
 
   const counter = await Counter.findOneAndUpdate(filter, update, options);
   return counter ? counter.seq : 1;
@@ -38,11 +42,19 @@ export async function getNextSequence(
 export async function generateFormattedCode(
   userId: string | mongoose.Types.ObjectId,
   type: CounterType,
-  prefixOverride?: string
+  prefixOverride?: string,
+  session?: mongoose.ClientSession
 ): Promise<string> {
+  if (type === 'return') {
+    const currentYear = new Date().getFullYear();
+    const seq = await getNextSequence(userId, 'return', currentYear, session);
+    const prefix = prefixOverride || 'RET';
+    return `${prefix}-${currentYear}-${String(seq).padStart(6, '0')}`;
+  }
+
   if (type === 'invoice') {
     const currentYear = new Date().getFullYear();
-    const seq = await getNextSequence(userId, 'invoice', currentYear);
+    const seq = await getNextSequence(userId, 'invoice', currentYear, session);
     const prefix = prefixOverride || 'INV';
     return `${prefix}-${currentYear}-${String(seq).padStart(5, '0')}`;
   }
