@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -70,6 +70,9 @@ interface PreparedProduct {
   numericWp: string;
   tokens: string[];
   intWp: number | null;
+  designLower: string;
+  brandLower: string;
+  codeLower: string;
 }
 
 interface WallpaperSearchResult {
@@ -86,64 +89,78 @@ function searchWallpaperCatalog(
     return { hasDigit: false, matches: [] };
   }
 
-  // Requirement 2: Letter-only input must NOT return results
-  if (!/\d/.test(trimmed)) {
+  const cleanQuery = trimmed.toLowerCase();
+  const stripped = cleanQuery.replace(/[\s-_]/g, '');
+  const hasDigit = /\d/.test(trimmed);
+
+  // Bare generic prefixes without numbers return empty and hasDigit: false
+  const isBareGeneric = /^(w|p|wp|test|abc|xyz)$/i.test(stripped);
+  if (isBareGeneric && !hasDigit) {
     return { hasDigit: false, matches: [] };
   }
 
   const queryDigits = trimmed.replace(/\D/g, '');
-  const queryNorm = trimmed.toLowerCase().replace(/[\s-_]/g, '');
+  const queryNorm = stripped;
   const queryInt = queryDigits ? parseInt(queryDigits, 10) : null;
 
   const exactMatches: ProductOption[] = [];
   const startsWithMatches: ProductOption[] = [];
   const containsMatches: ProductOption[] = [];
+  const textMatches: ProductOption[] = [];
 
   for (let i = 0; i < preparedList.length; i++) {
     const item = preparedList[i];
-    const { numericWp, tokens, intWp, normWp, product } = item;
+    const { numericWp, tokens, intWp, normWp, designLower, brandLower, codeLower, product } = item;
 
-    if (!numericWp) continue;
+    if (hasDigit) {
+      if (!numericWp) continue;
 
-    // 1. Exact match priority:
-    // Matches if:
-    // - Full numeric digit string matches query digits (e.g. "7668" === "7668", "261" === "261")
-    // - Or parsed integer matches (e.g. "0042" vs "42")
-    // - Or normalized string matches queryNorm (e.g. "WP-TEST-7668" vs "WP-TEST-7668" or "WP7668")
-    // - Or any digit token in WP equals query digits
-    const isExact =
-      numericWp === queryDigits ||
-      (intWp !== null && queryInt !== null && intWp === queryInt) ||
-      normWp === queryNorm ||
-      tokens.includes(queryDigits);
+      // 1. Exact match priority:
+      const isExact =
+        numericWp === queryDigits ||
+        (intWp !== null && queryInt !== null && intWp === queryInt) ||
+        normWp === queryNorm ||
+        tokens.includes(queryDigits);
 
-    if (isExact) {
-      exactMatches.push(product);
-      continue;
-    }
+      if (isExact) {
+        exactMatches.push(product);
+        continue;
+      }
 
-    // 2. Starts with query digits (e.g. searching "76" matches "7668")
-    const isStartsWith =
-      numericWp.startsWith(queryDigits) ||
-      tokens.some((t) => t.startsWith(queryDigits));
+      // 2. Starts with query digits
+      const isStartsWith =
+        numericWp.startsWith(queryDigits) ||
+        tokens.some((t) => t.startsWith(queryDigits));
 
-    if (isStartsWith) {
-      startsWithMatches.push(product);
-      continue;
-    }
+      if (isStartsWith) {
+        startsWithMatches.push(product);
+        continue;
+      }
 
-    // 3. Contains query digits (e.g. searching "7" matches "876")
-    const isContains =
-      numericWp.includes(queryDigits) ||
-      tokens.some((t) => t.includes(queryDigits)) ||
-      (queryNorm.length >= 3 && normWp.includes(queryNorm));
+      // 3. Contains query digits or normalized string or code/design
+      const isContains =
+        numericWp.includes(queryDigits) ||
+        tokens.some((t) => t.includes(queryDigits)) ||
+        (queryNorm.length >= 3 && normWp.includes(queryNorm)) ||
+        (codeLower && codeLower.includes(cleanQuery)) ||
+        (designLower && designLower.includes(cleanQuery));
 
-    if (isContains) {
-      containsMatches.push(product);
+      if (isContains) {
+        containsMatches.push(product);
+      }
+    } else {
+      // Text-only search: matches design, brand, or code!
+      if (
+        (designLower && designLower.includes(cleanQuery)) ||
+        (brandLower && brandLower.includes(cleanQuery)) ||
+        (codeLower && codeLower.includes(cleanQuery)) ||
+        normWp.includes(queryNorm)
+      ) {
+        textMatches.push(product);
+      }
     }
   }
 
-  // Sort starts-with by numeric closeness / length difference
   startsWithMatches.sort((a, b) => {
     const aNum = (a.wp || '').replace(/\D/g, '');
     const bNum = (b.wp || '').replace(/\D/g, '');
@@ -151,7 +168,6 @@ function searchWallpaperCatalog(
     return (a.wp || '').localeCompare(b.wp || '');
   });
 
-  // Sort contains by earliest index and length difference
   containsMatches.sort((a, b) => {
     const aNum = (a.wp || '').replace(/\D/g, '');
     const bNum = (b.wp || '').replace(/\D/g, '');
@@ -162,11 +178,13 @@ function searchWallpaperCatalog(
     return (a.wp || '').localeCompare(b.wp || '');
   });
 
-  const combined = [...exactMatches, ...startsWithMatches, ...containsMatches];
+  const combined = hasDigit
+    ? [...exactMatches, ...startsWithMatches, ...containsMatches]
+    : textMatches;
 
   return {
-    hasDigit: true,
-    matches: combined.slice(0, 15),
+    hasDigit,
+    matches: combined.slice(0, 20),
   };
 }
 
@@ -176,6 +194,8 @@ export default function NewInvoicePage() {
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [isProductsLoading, setIsProductsLoading] = useState(true);
+  const [isServerSearching, setIsServerSearching] = useState(false);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
@@ -236,6 +256,18 @@ export default function NewInvoicePage() {
         }
         if (pRes.status === 'fulfilled' && pRes.value?.success && Array.isArray(pRes.value.data)) {
           setProducts(pRes.value.data);
+        } else {
+          // Automatic retry in case of cold start or network delay
+          setTimeout(async () => {
+            try {
+              const retry = await fetch('/api/products').then((r) => r.json());
+              if (retry?.success && Array.isArray(retry.data)) {
+                setProducts(retry.data);
+              }
+            } catch (retryErr) {
+              console.error('Products retry failed:', retryErr);
+            }
+          }, 1500);
         }
         if (sRes.status === 'fulfilled' && sRes.value?.success && sRes.value.data) {
           const sData = sRes.value.data;
@@ -328,6 +360,9 @@ export default function NewInvoicePage() {
         numericWp,
         tokens,
         intWp,
+        designLower: (p.design || '').toLowerCase(),
+        brandLower: (p.brand || '').toLowerCase(),
+        codeLower: (p.code || '').toLowerCase(),
       };
     });
   }, [products]);
@@ -344,6 +379,34 @@ export default function NewInvoicePage() {
       };
       return next;
     });
+
+    // Debounced server search to guarantee results from live database
+    const query = val.trim();
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    if (query.length >= 2) {
+      searchDebounceRef.current = setTimeout(async () => {
+        try {
+          setIsServerSearching(true);
+          const res = await fetch(`/api/products?q=${encodeURIComponent(query)}`);
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setProducts((prev) => {
+              const existingIds = new Set(prev.map((p) => p._id));
+              const newItems = json.data.filter((p: ProductOption) => !existingIds.has(p._id));
+              if (newItems.length === 0) return prev;
+              return [...prev, ...newItems];
+            });
+          }
+        } catch (err) {
+          console.error('Server wallpaper search error:', err);
+        } finally {
+          setIsServerSearching(false);
+        }
+      }, 300);
+    }
   };
 
   const handleSelectWallpaperProduct = (index: number, prod: ProductOption) => {
@@ -471,11 +534,22 @@ export default function NewInvoicePage() {
       return;
     }
 
+    // Wallpaper items must be selected from catalog so stock auto-cuts
+    const invalidWp = wallpaperItems.find(
+      (w) => (w.searchQuery.trim() || w.wp.trim()) && !w.productId
+    );
+    if (invalidWp) {
+      toast.error('Please select wallpaper from dropdown to cut stock properly', {
+        description: `WP '${invalidWp.searchQuery || invalidWp.wp}' must be selected from catalog.`,
+      });
+      return;
+    }
+
     const validWallpaperItems = wallpaperItems
-      .filter((w) => w.wp.trim() || w.productId)
+      .filter((w) => Boolean(w.productId))
       .map((w) => ({
-        productId: w.productId || undefined,
-        wp: w.wp.trim() || 'Wallpaper',
+        productId: w.productId,
+        wp: w.wp.trim(),
         design: w.design || '',
         qty: Number(w.qty) || 1,
         rate: Number(w.rate) || 0,
@@ -717,7 +791,7 @@ export default function NewInvoicePage() {
                               <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-ink-muted" />
                               <input
                                 type="text"
-                                placeholder="Enter wallpaper number (e.g. 7668, WP-7668)..."
+                                placeholder="Enter wallpaper number or design (e.g. 7668, Damask)..."
                                 value={item.searchQuery}
                                 onChange={(e) => handleWallpaperSearchChange(index, e.target.value)}
                                 autoCapitalize="none"
@@ -754,15 +828,24 @@ export default function NewInvoicePage() {
                                     <Loader2 className="w-4 h-4 animate-spin text-teal" />
                                     <span>Loading wallpapers catalog...</span>
                                   </div>
-                                ) : !searchResult.hasDigit ? (
+                                ) : !searchResult.hasDigit && searchResult.matches.length === 0 ? (
                                   <div className="p-4 text-center text-xs sm:text-sm text-amber-900">
-                                    <p className="font-bold">Enter a wallpaper number</p>
-                                    <p className="text-xs text-amber-700 mt-1">Please type a numeric WP number (e.g. 7668 or WP-7668).</p>
+                                    <p className="font-bold">Enter a wallpaper number or design</p>
+                                    <p className="text-xs text-amber-700 mt-1">Please type a WP number (e.g. 7668) or design name.</p>
                                   </div>
                                 ) : searchResult.matches.length === 0 ? (
                                   <div className="p-4 text-center text-xs sm:text-sm text-amber-900">
-                                    <p className="font-bold">No matching wallpapers found for &lsquo;{item.searchQuery.trim()}&rsquo;.</p>
-                                    <p className="text-xs text-amber-700 mt-1">Check WP# or verify stock availability.</p>
+                                    {isServerSearching ? (
+                                      <div className="flex items-center justify-center gap-2 py-2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-amber-800" />
+                                        <span>Searching catalog on server...</span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <p className="font-bold">No matching wallpapers found for &lsquo;{item.searchQuery.trim()}&rsquo;.</p>
+                                        <p className="text-xs text-amber-700 mt-1">Verify WP# or add this wallpaper in Stock/Catalog first.</p>
+                                      </>
+                                    )}
                                   </div>
                                 ) : (
                                   searchResult.matches.map((p) => (
