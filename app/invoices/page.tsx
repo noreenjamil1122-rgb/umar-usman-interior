@@ -42,6 +42,8 @@ interface Invoice {
   remaining: number;
   method: string;
   jobStatus?: string;
+  isEdited?: boolean;
+  lastEditedAt?: string;
 }
 
 export default function InvoicesPage() {
@@ -474,9 +476,19 @@ export default function InvoicesPage() {
                     {displayInvoices.map((inv) => (
                       <tr key={inv._id} className="hover:bg-paper transition-colors">
                         <td className="py-4 px-4 font-mono font-bold text-teal">
-                          <Link href={`/invoices/${inv._id}`} className="hover:underline">
-                            {inv.number}
-                          </Link>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link href={`/invoices/${inv._id}`} className="hover:underline">
+                              {inv.number}
+                            </Link>
+                            {inv.isEdited && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
+                                title={inv.lastEditedAt ? `Edited on ${formatDate(inv.lastEditedAt)}` : 'Edited in software'}
+                              >
+                                Edited
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 px-4 text-ink font-semibold">
                           <div>{inv.customerId?.name || 'Walk-in'}</div>

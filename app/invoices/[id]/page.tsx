@@ -68,6 +68,17 @@ interface InvoiceDetail {
   createdByRole?: string;
   createdByName?: string;
   notes?: string;
+  isEdited?: boolean;
+  lastEditedAt?: string;
+  lastEditedByName?: string;
+  editHistory?: Array<{
+    editedAt: string;
+    editedBy: string;
+    editedByRole?: string;
+    previousTotal?: number;
+    newTotal?: number;
+    summary?: string;
+  }>;
 }
 
 interface ReturnRecord {
@@ -257,12 +268,15 @@ Reference: ${invoice.reference || '-'}`;
   };
 
   const handleOpenEdit = () => {
-    setIsEditAuthOpen(true);
+    if (!invoice) return;
+    router.push(`/invoices/${invoice._id}/edit`);
   };
 
   const handleEditAuthorized = () => {
     setIsEditAuthOpen(false);
-    setIsEditModalOpen(true);
+    if (invoice) {
+      router.push(`/invoices/${invoice._id}/edit`);
+    }
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -503,6 +517,13 @@ Reference: ${invoice.reference || '-'}`;
               </h1>
               {renderStatusPill()}
 
+              {invoice.isEdited && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                  <Edit className="w-3.5 h-3.5 text-amber-700" />
+                  Edited
+                </span>
+              )}
+
               <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold ${
                 invoice.jobStatus === 'Fully Paid'
                   ? 'bg-emerald-100 text-emerald-800'
@@ -515,7 +536,7 @@ Reference: ${invoice.reference || '-'}`;
                 {invoice.jobStatus || (isPaid ? 'Fully Paid' : 'Advance Received')}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-ink-muted flex items-center gap-2 mt-1">
+            <p className="text-xs sm:text-sm text-ink-muted flex items-center gap-2 mt-1 flex-wrap">
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4" />
                 <span>Issued on {formatDate(invoice.date)}</span>
@@ -523,6 +544,11 @@ Reference: ${invoice.reference || '-'}`;
               {invoice.createdByName && (
                 <span className="text-xs text-ink-muted">
                   • Created by {invoice.createdByName} ({invoice.createdByRole || 'Staff'})
+                </span>
+              )}
+              {invoice.isEdited && invoice.lastEditedByName && (
+                <span className="text-xs text-amber-800 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  • Last edited by {invoice.lastEditedByName}
                 </span>
               )}
             </p>
@@ -641,6 +667,49 @@ Reference: ${invoice.reference || '-'}`;
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         {/* Left 2 Cols: Customer and Line Items */}
         <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+          {/* Owner Audit History Box for Edited Invoices */}
+          {invoice.isEdited && invoice.editHistory && invoice.editHistory.length > 0 && (
+            <Card className="border-amber-300 bg-amber-50/50 p-4 sm:p-5 rounded-2xl shadow-xs">
+              <CardHeader className="p-0 pb-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-xs sm:text-sm font-black text-amber-950 flex items-center gap-2">
+                    <Edit className="w-4 h-4 text-amber-700" />
+                    Invoice Modification History (Owner Audit)
+                  </CardTitle>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                    Software Only • Not on Print Bill
+                  </span>
+                </div>
+                <CardDescription className="text-xs text-amber-900 mt-0.5">
+                  This invoice was edited. Printed quotations &amp; bills remain completely clean without any edit labels.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 pt-2">
+                <div className="divide-y divide-amber-200/80 text-xs">
+                  {invoice.editHistory.map((hist, idx) => (
+                    <div key={idx} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-amber-950">{hist.editedBy}</span>
+                          <span className="text-amber-800 text-[10.5px] uppercase font-semibold">
+                            ({hist.editedByRole || 'admin'})
+                          </span>
+                        </div>
+                        <p className="text-amber-900 font-medium mt-0.5">{hist.summary}</p>
+                      </div>
+                      <div className="text-right text-[11px] text-amber-800 shrink-0 font-medium">
+                        {new Date(hist.editedAt).toLocaleString('en-PK', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Customer & Seller Profile Box */}
           <Card className="p-5 sm:p-6 rounded-2xl shadow-warm">
             <CardHeader className="p-0 pb-4">

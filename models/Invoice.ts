@@ -36,6 +36,17 @@ export interface IInvoice extends Document {
   createdByRole?: string;
   createdByName?: string;
   notes?: string;
+  isEdited?: boolean;
+  lastEditedAt?: Date;
+  lastEditedByName?: string;
+  editHistory?: Array<{
+    editedAt: Date;
+    editedBy: string;
+    editedByRole?: string;
+    previousTotal?: number;
+    newTotal?: number;
+    summary?: string;
+  }>;
   isDemo?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -170,6 +181,27 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: String,
       trim: true,
     },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    lastEditedAt: {
+      type: Date,
+    },
+    lastEditedByName: {
+      type: String,
+      trim: true,
+    },
+    editHistory: [
+      {
+        editedAt: { type: Date, default: Date.now },
+        editedBy: { type: String, trim: true },
+        editedByRole: { type: String, trim: true },
+        previousTotal: { type: Number },
+        newTotal: { type: Number },
+        summary: { type: String, trim: true },
+      },
+    ],
     isDemo: {
       type: Boolean,
       default: false,
