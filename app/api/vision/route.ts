@@ -56,10 +56,15 @@ export async function POST(request: NextRequest) {
 
     if (geminiApiKey) {
       const candidateGeminiModels = [
-        'gemini-3.8-flash',
-        'gemini-3.7-flash',
-        'gemini-3.6-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-flash-lite-latest',
+        'gemini-3-flash-preview',
+        'gemini-3.1-flash-lite-preview',
         'gemini-3.5-flash',
+        'gemini-3.6-flash',
+        'gemini-3.7-flash',
+        'gemini-3.8-flash',
         'gemini-flash-latest',
       ];
 
@@ -74,8 +79,8 @@ export async function POST(request: NextRequest) {
                 {
                   parts: [
                     {
-                      inline_data: {
-                        mime_type: mimeType,
+                      inlineData: {
+                        mimeType: mimeType,
                         data: cleanBase64,
                       },
                     },
@@ -104,7 +109,7 @@ export async function POST(request: NextRequest) {
 
             // If 503 (high demand) or 429 (rate limit), pause briefly before trying next model
             if (geminiResponse.status === 503 || geminiResponse.status === 429) {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
+              await new Promise((resolve) => setTimeout(resolve, 150));
             }
           }
         } catch (callErr) {
