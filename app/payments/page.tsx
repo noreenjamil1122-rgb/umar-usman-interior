@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { CustomerSearchSelect } from '@/components/ui/CustomerSearchSelect';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -521,24 +522,14 @@ export default function PaymentsPage() {
         description="Receive payment against an invoice or apply credit to customer balance."
       >
         <form onSubmit={handleRecordPayment} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-light">
-              Select Customer *
-            </label>
-            <select
-              value={selectedCustId}
-              onChange={(e) => setSelectedCustId(e.target.value)}
-              className="w-full rounded-lg border border-warm-border bg-paper-light px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
-              required
-            >
-              <option value="">-- Choose Customer --</option>
-              {customers.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name} ({c.code} • {c.mobile})
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomerSearchSelect
+            customers={customers}
+            value={selectedCustId}
+            onChange={(id) => setSelectedCustId(id)}
+            required
+            label="Select Customer *"
+            placeholder="Type customer name or mobile number (e.g. Malik or 0306...)..."
+          />
 
           {unpaidInvoices.length > 0 && (
             <div className="space-y-1.5">

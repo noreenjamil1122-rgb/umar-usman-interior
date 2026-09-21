@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import { formatCurrency } from '@/lib/utils';
 import {
   Package,
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   BookOpen,
   Warehouse,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -68,6 +70,11 @@ export default function StockPage() {
   const [adjustReason, setAdjustReason] = useState('Manual Restock');
   const [adjustNote, setAdjustNote] = useState('');
   const [submittingStock, setSubmittingStock] = useState(false);
+
+  // Bulk Multi-Select & Delete State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeletePasswordOpen, setIsBulkDeletePasswordOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchStockData = async () => {
     setLoading(true);
@@ -170,6 +177,45 @@ export default function StockPage() {
 
     return matchesSearch && matchesBook && matchesWarehouse && matchesLowStock;
   });
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredProducts.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredProducts.map((p) => p._id));
+    }
+  };
+
+  const handleBulkDeleteAuthorized = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/products/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: selectedIds }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error || 'Failed to delete selected wallpapers');
+        return;
+      }
+      toast.success(json.message || `Successfully deleted ${selectedIds.length} wallpapers.`);
+      setSelectedIds([]);
+      fetchStockData();
+    } catch {
+      toast.error('Network error while deleting wallpapers');
+    } finally {
+      setBulkDeleting(false);
+      setIsBulkDeletePasswordOpen(false);
+    }
+  };
 
   // Aggregated Stats
   const totalStockRolls = products.reduce((sum, p) => sum + (p.stock || 0), 0);
@@ -315,6 +361,15 @@ export default function StockPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-bold text-xs">
                   <tr>
+                    <th className="py-3.5 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={filteredProducts.length > 0 && selectedIds.length === filteredProducts.length}
+                        onChange={handleSelectAll}
+                        className="rounded border-warm-border text-teal focus:ring-teal cursor-pointer w-4 h-4"
+                        title="Select All"
+                      />
+                    </th>
                     <th className="py-3.5 px-4">WP No</th>
                     <th className="py-3.5 px-4">Book Name</th>
                     <th className="py-3.5 px-4">Warehouse</th>
@@ -328,9 +383,29 @@ export default function StockPage() {
                   {filteredProducts.map((p) => {
                     const isOutOfStock = p.stock <= 0;
                     const isLowStock = p.stock > 0 && p.stock <= (p.minStock || 3);
+                    const isSelected = selectedIds.includes(p._id);
 
                     return (
-                      <tr key={p._id} className="hover:bg-paper transition-colors">
+                      <tr
+                        key={p._id}
+                        className={`hover:bg-paper transition-colors ${
+                          isSelected
+                            ? 'bg-teal-subtle/50'
+                            : isOutOfStock
+                            ? 'bg-rose-50/40'
+                            : isLowStock
+                            ? 'bg-amber-50/40'
+                            : ''
+                        }`}
+                      >
+                        <td className="py-4 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(p._id)}
+                            className="rounded border-warm-border text-teal focus:ring-teal cursor-pointer w-4 h-4"
+                          />
+                        </td>
                         <td className="py-4 px-4">
                           <div className="font-mono font-bold text-teal text-sm sm:text-base">WP {p.wp}</div>
                           <div className="text-xs font-mono text-ink-muted mt-0.5">{p.code || '-'}</div>
@@ -522,6 +597,49 @@ export default function StockPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Floating Bottom Action Bar for Bulk Selection */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-950 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 border border-gray-800">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-teal text-white flex items-center justify-center font-bold text-xs">
+              {selectedIds.length}
+            </span>
+            <span className="text-xs font-semibold">{selectedIds.length} Wallpapers Selected</span>
+          </div>
+          <div className="h-4 w-px bg-gray-700" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs text-gray-300 border-gray-700 hover:bg-gray-800 hover:text-white"
+            onClick={() => setSelectedIds([])}
+          >
+            Deselect All
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            className="text-xs font-bold shadow-md"
+            onClick={() => setIsBulkDeletePasswordOpen(true)}
+            isLoading={bulkDeleting}
+            leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+          >
+            Delete Selected ({selectedIds.length})
+          </Button>
+        </div>
+      )}
+
+      {/* Bulk Delete Password Modal */}
+      {isBulkDeletePasswordOpen && (
+        <PasswordPromptModal
+          isOpen={isBulkDeletePasswordOpen}
+          onClose={() => setIsBulkDeletePasswordOpen(false)}
+          onSuccess={handleBulkDeleteAuthorized}
+          type="delete"
+          title={`Delete ${selectedIds.length} Wallpapers in Bulk`}
+          description={`Admin Delete Protection password is required to delete ${selectedIds.length} selected wallpaper items from inventory.`}
+        />
+      )}
     </AppShell>
   );
 }

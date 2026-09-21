@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
-import { Plus, Edit2, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Book {
@@ -33,8 +33,11 @@ export default function BooksPage() {
   const [color, setColor] = useState('#1E6F6C');
   const [submitting, setSubmitting] = useState(false);
 
-  // Delete Password Modal
+  // Delete Modals State
   const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+  const [deleteAssignedStock, setDeleteAssignedStock] = useState(true);
+  const [isCascadeConfirmOpen, setIsCascadeConfirmOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   const fetchBooks = async () => {
     setLoading(true);
@@ -60,6 +63,21 @@ export default function BooksPage() {
     setName(b.name);
     setColor(b.color || '#1E6F6C');
     setIsOpen(true);
+  };
+
+  const handleInitiateDelete = (b: Book) => {
+    setBookToDelete(b);
+    setDeleteAssignedStock(true);
+    if ((b.productCount || 0) > 0) {
+      setIsCascadeConfirmOpen(true);
+    } else {
+      setIsPasswordModalOpen(true);
+    }
+  };
+
+  const handleProceedToPassword = () => {
+    setIsCascadeConfirmOpen(false);
+    setIsPasswordModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -100,14 +118,16 @@ export default function BooksPage() {
     if (!bookToDelete) return;
 
     try {
-      const res = await fetch(`/api/books/${bookToDelete._id}`, { method: 'DELETE' });
+      const query = deleteAssignedStock ? '?deleteProducts=true' : '';
+      const res = await fetch(`/api/books/${bookToDelete._id}${query}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok || !json.success) {
         toast.error('Cannot delete book', { description: json.error });
         return;
       }
-      toast.success('Book deleted successfully');
+      toast.success(json.message || 'Book deleted successfully');
       setBookToDelete(null);
+      setIsPasswordModalOpen(false);
       fetchBooks();
     } catch {
       toast.error('Failed to delete book');
@@ -216,7 +236,7 @@ export default function BooksPage() {
                     variant="ghost"
                     size="sm"
                     className="w-8 h-8 p-0 rounded-lg text-status-danger hover:bg-status-dangerLight"
-                    onClick={() => setBookToDelete(b)}
+                    onClick={() => handleInitiateDelete(b)}
                     title="Delete book (Protected)"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -250,15 +270,86 @@ export default function BooksPage() {
         </div>
       )}
 
+      {/* Cascade Book + Stock Delete Confirmation Modal */}
+      <Modal
+        isOpen={isCascadeConfirmOpen && Boolean(bookToDelete)}
+        onClose={() => {
+          setIsCascadeConfirmOpen(false);
+          setBookToDelete(null);
+        }}
+        title={`Delete Book: ${bookToDelete?.name}`}
+        description="This catalog book has wallpaper stock assigned to it."
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900">
+              <div className="font-bold text-amber-950 text-sm">
+                Book Contains {bookToDelete?.productCount || 0} Wallpaper Items ({bookToDelete?.totalStock || 0} rolls)
+              </div>
+              <p className="mt-1">
+                Previously, you had to delete every single wallpaper roll one by one. You can now delete this whole book along with all its assigned wallpaper items in one go.
+              </p>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2.5 p-3 rounded-xl border border-warm-border bg-paper-light cursor-pointer hover:bg-paper">
+            <input
+              type="checkbox"
+              checked={deleteAssignedStock}
+              onChange={(e) => setDeleteAssignedStock(e.target.checked)}
+              className="w-4 h-4 rounded text-teal focus:ring-teal cursor-pointer"
+            />
+            <div className="text-xs">
+              <span className="font-bold text-ink">
+                Delete all {bookToDelete?.productCount || 0} wallpaper rolls in this book
+              </span>
+              <p className="text-ink-muted text-[11px] mt-0.5">
+                Automatically cleans up all catalog designs and rolls assigned to {bookToDelete?.name}.
+              </p>
+            </div>
+          </label>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-warm-borderLight">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsCascadeConfirmOpen(false);
+                setBookToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={handleProceedToPassword}
+            >
+              Continue to Password Verification
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Delete Password Modal */}
       {bookToDelete && (
         <PasswordPromptModal
-          isOpen={Boolean(bookToDelete)}
-          onClose={() => setBookToDelete(null)}
+          isOpen={isPasswordModalOpen}
+          onClose={() => {
+            setIsPasswordModalOpen(false);
+            setBookToDelete(null);
+          }}
           onSuccess={confirmDelete}
           type="delete"
-          title={`Delete Book ${bookToDelete.name}`}
-          description={`Admin Delete Protection password is required to delete wallpaper book "${bookToDelete.name}" (${bookToDelete.code}).`}
+          title={`Confirm Delete: ${bookToDelete.name}`}
+          description={
+            deleteAssignedStock && (bookToDelete.productCount || 0) > 0
+              ? `Enter Admin Delete Protection password to permanently delete book "${bookToDelete.name}" and all its ${bookToDelete.productCount} wallpaper products.`
+              : `Enter Admin Delete Protection password to delete book "${bookToDelete.name}" (${bookToDelete.code}).`
+          }
         />
       )}
 

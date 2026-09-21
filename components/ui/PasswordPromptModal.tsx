@@ -13,8 +13,8 @@ export type ProtectionType = 'delete' | 'hide' | 'payment' | 'supplier';
 export interface PasswordPromptModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
-  onAuthorized?: () => void | Promise<void>;
+  onSuccess?: (password?: string) => void;
+  onAuthorized?: (password?: string) => void | Promise<void>;
   type?: ProtectionType;
   protectionType?: ProtectionType;
   title?: string;
@@ -94,14 +94,15 @@ export function PasswordPromptModal({
       }
 
       toast.success('Password verified successfully');
+      const verifiedPassword = password;
       setPassword('');
       setErrorMsg(null);
       onClose();
       if (onAuthorized) {
-        await onAuthorized();
+        await onAuthorized(verifiedPassword);
       }
       if (onSuccess) {
-        onSuccess();
+        onSuccess(verifiedPassword);
       }
     } catch {
       setErrorMsg('Network error while verifying password');

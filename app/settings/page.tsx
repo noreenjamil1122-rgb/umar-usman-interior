@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { PasswordPromptModal } from '@/components/ui/PasswordPromptModal';
 import { formatDateTime } from '@/lib/utils';
 import {
   Building2,
@@ -18,6 +19,9 @@ import {
   Download,
   User,
   Key,
+  Eye,
+  EyeOff,
+  CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -82,7 +86,11 @@ export default function SettingsPage() {
 
   // Security password fields
   const [pwdType, setPwdType] = useState<'delete' | 'hide' | 'payment' | 'supplier'>('delete');
+  const [oldSecurityPassword, setOldSecurityPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showOldSecurityPwdText, setShowOldSecurityPwdText] = useState(false);
+  const [showNewSecurityPwdText, setShowNewSecurityPwdText] = useState(false);
+  const [removingPwdType, setRemovingPwdType] = useState<'delete' | 'hide' | 'payment' | 'supplier' | null>(null);
   const [pwdLoading, setPwdLoading] = useState(false);
 
   // Activity logs
@@ -94,6 +102,13 @@ export default function SettingsPage() {
   const [newAccountPwd, setNewAccountPwd] = useState('');
   const [confirmAccountPwd, setConfirmAccountPwd] = useState('');
   const [acctPwdLoading, setAcctPwdLoading] = useState(false);
+
+  // Admin Security Unlock State for Account Password
+  const [isAccountUnlocked, setIsAccountUnlocked] = useState(false);
+  const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
+  const [showCurrentPwdText, setShowCurrentPwdText] = useState(false);
+  const [showNewPwdText, setShowNewPwdText] = useState(false);
+  const [adminUnlockPwd, setAdminUnlockPwd] = useState('');
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -169,10 +184,20 @@ export default function SettingsPage() {
     }
   };
 
+  const isSelectedPwdTypeActive =
+    (pwdType === 'delete' && settings.hasDeletePassword) ||
+    (pwdType === 'hide' && settings.hasHidePassword) ||
+    (pwdType === 'payment' && settings.hasPaymentPassword) ||
+    (pwdType === 'supplier' && settings.hasSupplierPassword);
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSelectedPwdTypeActive && !oldSecurityPassword) {
+      toast.error('New password change karne se pehle purana (old) password enter karna zaroori hai.');
+      return;
+    }
     if (!newPassword || newPassword.length < 4) {
-      toast.error('Password must be at least 4 characters');
+      toast.error('Naya password kam az kam 4 characters ka hona chahiye.');
       return;
     }
 
@@ -181,7 +206,11 @@ export default function SettingsPage() {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: pwdType, newPassword }),
+        body: JSON.stringify({
+          type: pwdType,
+          oldPassword: oldSecurityPassword,
+          newPassword,
+        }),
       });
 
       const json = await res.json();
@@ -191,7 +220,8 @@ export default function SettingsPage() {
         return;
       }
 
-      toast.success(`${pwdType.toUpperCase()} password set successfully`);
+      toast.success(json.message || `${pwdType.toUpperCase()} password update ho gaya hai.`);
+      setOldSecurityPassword('');
       setNewPassword('');
       fetchSettings();
     } catch {
@@ -201,20 +231,50 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRemovePassword = async (type: 'delete' | 'hide' | 'payment' | 'supplier') => {
+  const handleConfirmRemovePassword = async (verifiedPassword?: string) => {
+    if (!removingPwdType) return;
+    const type = removingPwdType;
+    setRemovingPwdType(null);
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, newPassword: '' }),
+        body: JSON.stringify({ type, action: 'remove', oldPassword: verifiedPassword }),
       });
       const json = await res.json();
-      if (json.success) {
-        toast.success(`${type.toUpperCase()} protection removed`);
-        fetchSettings();
+      if (!res.ok || !json.success) {
+        toast.error('Failed to remove password protection', { description: json.error });
+        return;
       }
+      toast.success(`${type.toUpperCase()} protection removed successfully`);
+      fetchSettings();
     } catch {
       toast.error('Failed to remove password protection');
+    }
+  };
+
+  const handleAdminUnlockSuccess = async (enteredPassword?: string) => {
+    setIsUnlockModalOpen(false);
+    setIsAccountUnlocked(true);
+    const pwdToUse = enteredPassword || adminUnlockPwd;
+    if (enteredPassword) {
+      setAdminUnlockPwd(enteredPassword);
+    }
+    try {
+      const res = await fetch('/api/auth/reveal-account-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: pwdToUse }),
+      });
+      const json = await res.json();
+      if (json.success && json.currentPassword) {
+        setCurrentAccountPwd(json.currentPassword);
+        toast.success('Admin authorized! Current password revealed.');
+      } else {
+        toast.success('Admin authorized! You can now update your password.');
+      }
+    } catch {
+      toast.success('Admin authorized! You can now update your password.');
     }
   };
 
@@ -233,6 +293,8 @@ export default function SettingsPage() {
         body: JSON.stringify({
           currentPassword: currentAccountPwd,
           newPassword: newAccountPwd,
+          adminAuthorized: isAccountUnlocked,
+          adminPassword: adminUnlockPwd,
         }),
       });
 
@@ -244,7 +306,7 @@ export default function SettingsPage() {
       }
 
       toast.success('Account password updated successfully');
-      setCurrentAccountPwd('');
+      setCurrentAccountPwd(newAccountPwd);
       setNewAccountPwd('');
       setConfirmAccountPwd('');
     } catch {
@@ -514,7 +576,11 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setPwdType('delete')}
+                      onClick={() => {
+                        setPwdType('delete');
+                        setOldSecurityPassword('');
+                        setNewPassword('');
+                      }}
                       className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
                     >
                       {settings.hasDeletePassword ? 'Change Password' : 'Set Password'}
@@ -522,7 +588,7 @@ export default function SettingsPage() {
                     {settings.hasDeletePassword && (
                       <button
                         type="button"
-                        onClick={() => handleRemovePassword('delete')}
+                        onClick={() => setRemovingPwdType('delete')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
                         Remove Protection
@@ -542,7 +608,11 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setPwdType('hide')}
+                      onClick={() => {
+                        setPwdType('hide');
+                        setOldSecurityPassword('');
+                        setNewPassword('');
+                      }}
                       className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
                     >
                       {settings.hasHidePassword ? 'Change Password' : 'Set Password'}
@@ -550,7 +620,7 @@ export default function SettingsPage() {
                     {settings.hasHidePassword && (
                       <button
                         type="button"
-                        onClick={() => handleRemovePassword('hide')}
+                        onClick={() => setRemovingPwdType('hide')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
                         Remove Protection
@@ -570,7 +640,11 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setPwdType('payment')}
+                      onClick={() => {
+                        setPwdType('payment');
+                        setOldSecurityPassword('');
+                        setNewPassword('');
+                      }}
                       className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
                     >
                       {settings.hasPaymentPassword ? 'Change Password' : 'Set Password'}
@@ -578,7 +652,7 @@ export default function SettingsPage() {
                     {settings.hasPaymentPassword && (
                       <button
                         type="button"
-                        onClick={() => handleRemovePassword('payment')}
+                        onClick={() => setRemovingPwdType('payment')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
                         Remove Protection
@@ -598,7 +672,11 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setPwdType('supplier')}
+                      onClick={() => {
+                        setPwdType('supplier');
+                        setOldSecurityPassword('');
+                        setNewPassword('');
+                      }}
                       className="text-[10px] text-teal hover:underline font-semibold block mx-auto pt-0.5"
                     >
                       {settings.hasSupplierPassword ? 'Change Password' : 'Set Password'}
@@ -606,7 +684,7 @@ export default function SettingsPage() {
                     {settings.hasSupplierPassword && (
                       <button
                         type="button"
-                        onClick={() => handleRemovePassword('supplier')}
+                        onClick={() => setRemovingPwdType('supplier')}
                         className="text-[10px] text-status-danger hover:underline block mx-auto"
                       >
                         Remove Protection
@@ -623,9 +701,11 @@ export default function SettingsPage() {
                     </label>
                     <select
                       value={pwdType}
-                      onChange={(e) =>
-                        setPwdType(e.target.value as 'delete' | 'hide' | 'payment' | 'supplier')
-                      }
+                      onChange={(e) => {
+                        setPwdType(e.target.value as 'delete' | 'hide' | 'payment' | 'supplier');
+                        setOldSecurityPassword('');
+                        setNewPassword('');
+                      }}
                       className="w-full rounded-lg border border-warm-border bg-paper px-3 py-2 text-sm text-ink font-semibold focus:border-teal focus:outline-none"
                     >
                       <option value="delete">1. Delete Protection (Deletions of books, wallpapers, customers, invoices)</option>
@@ -635,17 +715,63 @@ export default function SettingsPage() {
                     </select>
                   </div>
 
-                  <Input
-                    label="New Password (min 4 characters)"
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    leftIcon={<Lock className="w-4 h-4" />}
-                  />
+                  {/* Old Password Input (Mandatory when currently active) */}
+                  {isSelectedPwdTypeActive && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-ink">
+                          Old / Current Password <span className="text-status-danger">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowOldSecurityPwdText(!showOldSecurityPwdText)}
+                          className="text-xs text-teal font-semibold flex items-center gap-1 hover:underline"
+                        >
+                          {showOldSecurityPwdText ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{showOldSecurityPwdText ? 'Hide' : 'Show'}</span>
+                        </button>
+                      </div>
+                      <Input
+                        type={showOldSecurityPwdText ? 'text' : 'password'}
+                        required
+                        placeholder="Enter your current old security password"
+                        value={oldSecurityPassword}
+                        onChange={(e) => setOldSecurityPassword(e.target.value)}
+                        leftIcon={<Lock className="w-4 h-4" />}
+                      />
+                      <p className="text-[11px] text-amber-700 font-medium">
+                        ⚠️ Security Rule: Naya password change karne se pehle purana (old) password add karna hoga.
+                      </p>
+                    </div>
+                  )}
 
-                  <div className="flex justify-end">
+                  {/* New Password Input */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-ink">
+                        {isSelectedPwdTypeActive ? 'New Password (min 4 characters)' : 'Set Password (min 4 characters)'}{' '}
+                        <span className="text-status-danger">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewSecurityPwdText(!showNewSecurityPwdText)}
+                        className="text-xs text-teal font-semibold flex items-center gap-1 hover:underline"
+                      >
+                        {showNewSecurityPwdText ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <span>{showNewSecurityPwdText ? 'Hide' : 'Show'}</span>
+                      </button>
+                    </div>
+                    <Input
+                      type={showNewSecurityPwdText ? 'text' : 'password'}
+                      required
+                      placeholder="Enter new 4+ character password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      leftIcon={<Key className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-1">
                     <Button type="submit" variant="teal" isLoading={pwdLoading}>
                       Save Security Password
                     </Button>
@@ -902,49 +1028,177 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <form onSubmit={handleChangeAccountPassword} className="space-y-4 pt-2">
-                  <h4 className="text-xs font-bold text-ink uppercase tracking-wider">
-                    Change Account Password
-                  </h4>
+                {!isAccountUnlocked ? (
+                  /* LOCKED STATE: Requires Admin Protection Password */
+                  <div className="p-6 rounded-2xl bg-paper border border-warm-border shadow-warm space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-teal-subtle flex items-center justify-center shrink-0 border border-teal/20 text-teal">
+                        <Shield className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-base font-extrabold text-ink">
+                          Admin Security Verification Required
+                        </h3>
+                        <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">
+                          Account password ko view ya change karne ke liye pehle Admin Security Password enter karein.
+                          Verification ke baad current active password screen par show ho jayega aur aap naya password change kar sakenge.
+                        </p>
+                      </div>
+                    </div>
 
-                  <Input
-                    label="Current Password"
-                    type="password"
-                    required
-                    value={currentAccountPwd}
-                    onChange={(e) => setCurrentAccountPwd(e.target.value)}
-                    leftIcon={<Lock className="w-4 h-4" />}
-                  />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input
-                      label="New Password (min 6 characters)"
-                      type="password"
-                      required
-                      value={newAccountPwd}
-                      onChange={(e) => setNewAccountPwd(e.target.value)}
-                      leftIcon={<Key className="w-4 h-4" />}
-                    />
-                    <Input
-                      label="Confirm New Password"
-                      type="password"
-                      required
-                      value={confirmAccountPwd}
-                      onChange={(e) => setConfirmAccountPwd(e.target.value)}
-                      leftIcon={<Key className="w-4 h-4" />}
-                    />
+                    <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="teal"
+                        size="md"
+                        leftIcon={<Lock className="w-4 h-4" />}
+                        onClick={() => setIsUnlockModalOpen(true)}
+                        className="shadow-warm font-bold"
+                      >
+                        Verify Admin Password to Unlock
+                      </Button>
+                    </div>
                   </div>
+                ) : (
+                  /* UNLOCKED STATE: Reveal Current Password + Change Form */
+                  <div className="space-y-5">
+                    <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 text-xs text-emerald-900 font-semibold">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <span>Admin Access Verified. Aap ka current active password neechay show ho raha hai aur aap naya password update kar sakte hain.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountUnlocked(false);
+                          setAdminUnlockPwd('');
+                          setShowCurrentPwdText(false);
+                        }}
+                        className="text-xs text-emerald-800 hover:text-emerald-950 underline font-bold shrink-0 self-end sm:self-auto"
+                      >
+                        Lock Again
+                      </button>
+                    </div>
 
-                  <div className="flex justify-end">
-                    <Button type="submit" variant="teal" isLoading={acctPwdLoading}>
-                      Update Account Password
-                    </Button>
+                    <form onSubmit={handleChangeAccountPassword} className="space-y-4 pt-1">
+                      <h4 className="text-xs font-bold text-ink uppercase tracking-wider">
+                        Change Account Password
+                      </h4>
+
+                      {/* Current Password Field with Reveal Eye Toggle */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-ink">Current Active Password</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowCurrentPwdText(!showCurrentPwdText)}
+                            className="text-xs text-teal font-semibold flex items-center gap-1.5 hover:underline"
+                          >
+                            {showCurrentPwdText ? (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5" />
+                                <span>Hide Password</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Show Current Password</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <Input
+                          type={showCurrentPwdText ? 'text' : 'password'}
+                          required
+                          value={currentAccountPwd}
+                          onChange={(e) => setCurrentAccountPwd(e.target.value)}
+                          leftIcon={<Lock className="w-4 h-4" />}
+                          placeholder="Current active password"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-ink">New Password (min 6 chars)</label>
+                            <button
+                              type="button"
+                              onClick={() => setShowNewPwdText(!showNewPwdText)}
+                              className="text-[11px] text-ink-muted hover:text-ink flex items-center gap-1"
+                            >
+                              {showNewPwdText ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                              <span>{showNewPwdText ? 'Hide' : 'Show'}</span>
+                            </button>
+                          </div>
+                          <Input
+                            type={showNewPwdText ? 'text' : 'password'}
+                            required
+                            value={newAccountPwd}
+                            onChange={(e) => setNewAccountPwd(e.target.value)}
+                            leftIcon={<Key className="w-4 h-4" />}
+                            placeholder="Enter new password"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-ink">Confirm New Password</label>
+                          <Input
+                            type={showNewPwdText ? 'text' : 'password'}
+                            required
+                            value={confirmAccountPwd}
+                            onChange={(e) => setConfirmAccountPwd(e.target.value)}
+                            leftIcon={<Key className="w-4 h-4" />}
+                            placeholder="Confirm new password"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsAccountUnlocked(false);
+                            setAdminUnlockPwd('');
+                            setShowCurrentPwdText(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" variant="teal" isLoading={acctPwdLoading}>
+                          Update Account Password
+                        </Button>
+                      </div>
+                    </form>
                   </div>
-                </form>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
+      )}
+
+      {/* Admin Protection Password Prompt for Account Credentials */}
+      {isUnlockModalOpen && (
+        <PasswordPromptModal
+          isOpen={isUnlockModalOpen}
+          onClose={() => setIsUnlockModalOpen(false)}
+          onSuccess={(pwd) => handleAdminUnlockSuccess(pwd)}
+          type="delete"
+          title="Admin Security Verification"
+          description="Enter Admin Protection password to access account credentials, reveal current password and enable password updates."
+        />
+      )}
+      {/* Admin Protection Password Prompt for Removing Protection */}
+      {removingPwdType && (
+        <PasswordPromptModal
+          isOpen={Boolean(removingPwdType)}
+          onClose={() => setRemovingPwdType(null)}
+          onSuccess={(pwd) => handleConfirmRemovePassword(pwd)}
+          protectionType={removingPwdType}
+          title={`Remove ${removingPwdType.toUpperCase()} Protection`}
+          description={`Enter the current ${removingPwdType.toUpperCase()} password to confirm removal.`}
+        />
       )}
     </AppShell>
   );

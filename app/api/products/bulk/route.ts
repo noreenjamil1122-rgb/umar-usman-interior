@@ -6,6 +6,7 @@ import Product from '@/models/Product';
 import StockHistory from '@/models/StockHistory';
 import { generateFormattedCode } from '@/lib/counters';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
+import { logActivity } from '@/lib/activity';
 
 interface BulkItem {
   code: string; // WP number
@@ -197,3 +198,67 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  if (!verifyCsrf(request)) {
+    return csrfErrorResponse();
+  }
+
+  try {
+    const session = await getAuthSession(request);
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { productIds } = body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No products selected for deletion.' },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+    const businessOwnerId = getEffectiveUserId(session);
+    const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
+
+    const validObjectIds = productIds
+      .filter((id: unknown) => typeof id === 'string' && mongoose.Types.ObjectId.isValid(id))
+      .map((id: string) => new mongoose.Types.ObjectId(id));
+
+    if (validObjectIds.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid product IDs provided.' },
+        { status: 400 }
+      );
+    }
+
+    const deleteResult = await Product.deleteMany({
+      _id: { $in: validObjectIds },
+      userId: userObjectId,
+    });
+
+    const deletedCount = deleteResult.deletedCount || 0;
+
+    await logActivity({
+      userId: userObjectId,
+      type: 'Wallpaper Deleted',
+      detail: `Bulk deleted ${deletedCount} wallpaper items from inventory.`,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${deletedCount} wallpaper products from inventory.`,
+      deletedCount,
+    });
+  } catch (error) {
+    console.error('Bulk product DELETE error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete selected products' },
+      { status: 500 }
+    );
+  }
+}
+

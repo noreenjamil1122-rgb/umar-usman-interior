@@ -103,16 +103,29 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const userObjectId = new mongoose.Types.ObjectId(businessOwnerId);
     const bookId = new mongoose.Types.ObjectId(params.id);
 
-    // Prevent deleting Book if products depend on it
+    const { searchParams } = new URL(request.url);
+    const deleteProducts =
+      searchParams.get('deleteProducts') === 'true' || searchParams.get('cascade') === 'true';
+
+    // Count products assigned to this book
     const attachedCount = await Product.countDocuments({ userId: userObjectId, bookId });
-    if (attachedCount > 0) {
+
+    if (attachedCount > 0 && !deleteProducts) {
       return NextResponse.json(
         {
           success: false,
-          error: `Cannot delete book. ${attachedCount} products are currently assigned to this book. Please reassign products first.`,
+          attachedCount,
+          requiresConfirmation: true,
+          error: `Cannot delete book. ${attachedCount} products are currently assigned to this book. To delete the book, please confirm deleting its assigned stock products as well.`,
         },
         { status: 400 }
       );
+    }
+
+    let deletedProductCount = 0;
+    if (attachedCount > 0 && deleteProducts) {
+      const deleteProductsResult = await Product.deleteMany({ userId: userObjectId, bookId });
+      deletedProductCount = deleteProductsResult.deletedCount || 0;
     }
 
     const deleted = await Book.findOneAndDelete({ _id: bookId, userId: userObjectId });
@@ -123,12 +136,19 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     await logActivity({
       userId: userObjectId,
       type: 'Book Deleted',
-      detail: `Wallpaper Book deleted: ${deleted.name} (${deleted.code})`,
+      detail:
+        deletedProductCount > 0
+          ? `Wallpaper Book deleted: ${deleted.name} (${deleted.code}) and all its ${deletedProductCount} assigned wallpaper rolls removed from inventory.`
+          : `Wallpaper Book deleted: ${deleted.name} (${deleted.code})`,
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Book deleted successfully',
+      message:
+        deletedProductCount > 0
+          ? `Book and all its ${deletedProductCount} wallpaper rolls deleted successfully.`
+          : 'Book deleted successfully.',
+      deletedProductCount,
     });
   } catch (error) {
     console.error('Book DELETE error:', error);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/mongodb';
-import { getAuthSession, hashPassword } from '@/lib/auth';
+import { getAuthSession, hashPassword, comparePassword } from '@/lib/auth';
 import Settings from '@/models/Settings';
 import { SettingsSchema } from '@/lib/validations';
 import { verifyCsrf, csrfErrorResponse } from '@/lib/csrf';
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, newPassword, action } = body; // type: 'delete' | 'hide' | 'payment' | 'supplier'
+    const { type, newPassword, action, oldPassword } = body; // type: 'delete' | 'hide' | 'payment' | 'supplier'
 
     if (!['delete', 'hide', 'payment', 'supplier'].includes(type)) {
       return NextResponse.json(
@@ -137,6 +137,33 @@ export async function POST(request: NextRequest) {
             ? 'paymentPasswordHash'
             : 'supplierPasswordHash';
 
+    const existingSettings = await Settings.findOne({ userId: userObjectId }).lean();
+    const existingHash = existingSettings?.[updateField as keyof typeof existingSettings] as string | undefined;
+
+    // If a password is already active, OLD password verification is strictly mandatory
+    if (existingHash) {
+      if (!oldPassword) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'New password change karne se pehle purana (old) password add karna hoga.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const isOldMatch = await comparePassword(oldPassword, existingHash);
+      if (!isOldMatch) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Purana (Old) password ghalat hai. Durust password enter karein.',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (action === 'remove') {
       await Settings.updateOne(
         { userId: userObjectId },
@@ -151,7 +178,7 @@ export async function POST(request: NextRequest) {
 
     if (!newPassword || newPassword.length < 4) {
       return NextResponse.json(
-        { success: false, error: 'Password must be at least 4 characters' },
+        { success: false, error: 'New password must be at least 4 characters' },
         { status: 400 }
       );
     }

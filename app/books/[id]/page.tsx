@@ -116,6 +116,11 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
   // Delete Password Modal
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
+  // Bulk Multi-Select & Delete State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeletePasswordOpen, setIsBulkDeletePasswordOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -449,6 +454,45 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map((p) => p._id));
+    }
+  };
+
+  const handleBulkDeleteAuthorized = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/products/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: selectedIds }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error || 'Failed to delete selected wallpapers');
+        return;
+      }
+      toast.success(json.message || `Successfully deleted ${selectedIds.length} wallpapers.`);
+      setSelectedIds([]);
+      fetchData();
+    } catch {
+      toast.error('Network error while deleting wallpapers');
+    } finally {
+      setBulkDeleting(false);
+      setIsBulkDeletePasswordOpen(false);
+    }
+  };
+
   const handleOpenAdjust = (p: Product, type: 'add' | 'subtract') => {
     setAdjustingProduct(p);
     setAdjustType(type);
@@ -637,6 +681,15 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
               <table className="w-full text-left text-sm">
                 <thead className="bg-paper border-b border-warm-border text-ink-muted uppercase font-bold text-xs">
                   <tr>
+                    <th className="py-3.5 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                        onChange={handleSelectAll}
+                        className="rounded border-warm-border text-teal focus:ring-teal cursor-pointer w-4 h-4"
+                        title="Select All"
+                      />
+                    </th>
                     <th className="py-3.5 px-4">WP No.</th>
                     <th className="py-3.5 px-4">Color</th>
                     <th className="py-3.5 px-4">Warehouse</th>
@@ -650,15 +703,30 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                   {filtered.map((p) => {
                     const isOut = p.stock <= 0;
                     const isLow = p.stock > 0 && p.stock <= p.minStock;
+                    const isSelected = selectedIds.includes(p._id);
 
                     return (
                       <tr
                         key={p._id}
                         id={`row-wp-${p.wp}`}
                         className={`hover:bg-paper transition-colors ${
-                          isOut ? 'bg-rose-50/40' : isLow ? 'bg-amber-50/40' : ''
+                          isSelected
+                            ? 'bg-teal-subtle/50'
+                            : isOut
+                            ? 'bg-rose-50/40'
+                            : isLow
+                            ? 'bg-amber-50/40'
+                            : ''
                         }`}
                       >
+                        <td className="py-4 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(p._id)}
+                            className="rounded border-warm-border text-teal focus:ring-teal cursor-pointer w-4 h-4"
+                          />
+                        </td>
                         <td className="py-4 px-4 font-mono font-bold text-teal">
                           <div className="text-sm sm:text-base">WP {p.wp}</div>
                           {p.code && <div className="text-xs text-ink-muted font-normal mt-0.5">{p.code}</div>}
@@ -1133,7 +1201,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
         </Modal>
       )}
 
-      {/* Delete Wallpaper Password Modal */}
+      {/* Delete Wallpaper Password Modal (Single) */}
       {productToDelete && (
         <PasswordPromptModal
           isOpen={Boolean(productToDelete)}
@@ -1142,6 +1210,49 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
           type="delete"
           title={`Delete WP ${productToDelete.wp}`}
           description={`Admin Delete Protection password is required to delete wallpaper "${productToDelete.wp}" from ${book?.name}.`}
+        />
+      )}
+
+      {/* Floating Bottom Action Bar for Bulk Selection */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-950 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 border border-gray-800">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-teal text-white flex items-center justify-center font-bold text-xs">
+              {selectedIds.length}
+            </span>
+            <span className="text-xs font-semibold">{selectedIds.length} Wallpapers Selected</span>
+          </div>
+          <div className="h-4 w-px bg-gray-700" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs text-gray-300 border-gray-700 hover:bg-gray-800 hover:text-white"
+            onClick={() => setSelectedIds([])}
+          >
+            Deselect All
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            className="text-xs font-bold shadow-md"
+            onClick={() => setIsBulkDeletePasswordOpen(true)}
+            isLoading={bulkDeleting}
+            leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+          >
+            Delete Selected ({selectedIds.length})
+          </Button>
+        </div>
+      )}
+
+      {/* Bulk Delete Password Modal */}
+      {isBulkDeletePasswordOpen && (
+        <PasswordPromptModal
+          isOpen={isBulkDeletePasswordOpen}
+          onClose={() => setIsBulkDeletePasswordOpen(false)}
+          onSuccess={handleBulkDeleteAuthorized}
+          type="delete"
+          title={`Delete ${selectedIds.length} Wallpapers in Bulk`}
+          description={`Admin Delete Protection password is required to delete ${selectedIds.length} selected wallpaper items from ${book?.name}.`}
         />
       )}
     </AppShell>

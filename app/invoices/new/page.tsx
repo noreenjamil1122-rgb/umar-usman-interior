@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { AmountInput } from '@/components/ui/AmountInput';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { CustomerSearchSelect } from '@/components/ui/CustomerSearchSelect';
 import { formatCurrency, roundMoney } from '@/lib/utils';
 import {
   Plus,
@@ -666,34 +667,15 @@ export default function NewInvoicePage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs sm:text-sm font-bold uppercase tracking-wider text-ink">
-                      Select Customer *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddCustomerOpen(true)}
-                      className="text-xs sm:text-sm text-teal font-semibold hover:underline flex items-center gap-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>New Customer</span>
-                    </button>
-                  </div>
-                  <select
-                    value={selectedCustomerId}
-                    onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    className="w-full min-h-[44px] rounded-xl border border-warm-border bg-paper-light px-3.5 py-2.5 text-sm sm:text-base text-ink focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
-                    required
-                  >
-                    <option value="">-- Choose Customer / Party --</option>
-                    {customers.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name} ({c.code} • {c.mobile}){c.type === 'supplier' ? ' [Supplier]' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <CustomerSearchSelect
+                  customers={customers}
+                  value={selectedCustomerId}
+                  onChange={(id) => setSelectedCustomerId(id)}
+                  onAddNewCustomer={() => setIsAddCustomerOpen(true)}
+                  required
+                  label="Select Customer *"
+                  placeholder="Type name or mobile number (e.g. Malik or 0306...)..."
+                />
 
                 <Input
                   label="Invoice Date"

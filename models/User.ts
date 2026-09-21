@@ -9,6 +9,7 @@ export interface IUser extends Document {
   role: 'admin' | 'worker';
   adminId?: mongoose.Types.ObjectId; // References the Admin owner if user is a worker
   status: 'active' | 'inactive';
+  displayPassword?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +53,9 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
+    },
+    displayPassword: {
+      type: String,
     },
   },
   {
