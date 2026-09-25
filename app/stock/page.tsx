@@ -19,6 +19,9 @@ import {
   BookOpen,
   Warehouse,
   Trash2,
+  AlertOctagon,
+  X,
+  Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -61,7 +64,8 @@ export default function StockPage() {
   const [search, setSearch] = useState('');
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
-  const [filterLowStockOnly, setFilterLowStockOnly] = useState(false);
+  const [stockFilterMode, setStockFilterMode] = useState<'all' | 'low_stock' | 'out_of_stock'>('all');
+  const filterLowStockOnly = stockFilterMode === 'low_stock';
 
   // Stock Adjustment Modal State
   const [adjustingProduct, setAdjustingProduct] = useState<ProductItem | null>(null);
@@ -173,9 +177,14 @@ export default function StockPage() {
     const matchesBook = !selectedBook || (p.bookId && p.bookId._id === selectedBook);
     const matchesWarehouse =
       !selectedWarehouse || (p.warehouseId && p.warehouseId._id === selectedWarehouse);
-    const matchesLowStock = !filterLowStockOnly || p.stock <= (p.minStock || 3);
+    let matchesStock = true;
+    if (stockFilterMode === 'low_stock') {
+      matchesStock = p.stock <= (p.minStock || 3);
+    } else if (stockFilterMode === 'out_of_stock') {
+      matchesStock = p.stock <= 0;
+    }
 
-    return matchesSearch && matchesBook && matchesWarehouse && matchesLowStock;
+    return matchesSearch && matchesBook && matchesWarehouse && matchesStock;
   });
 
   const handleToggleSelect = (id: string) => {
@@ -249,15 +258,48 @@ export default function StockPage() {
         </div>
       </div>
 
-      {/* Overview Cards */}
+      {/* Overview Cards (Clickable Filter Cards) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <Card className="p-5 sm:p-6 bg-paper border border-warm-border shadow-warm">
-          <div className="text-xs sm:text-sm font-bold uppercase text-ink-muted">Total Wallpapers</div>
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setStockFilterMode('all')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStockFilterMode('all');
+            }
+          }}
+          className={`p-5 sm:p-6 bg-paper border cursor-pointer transition-all select-none active:scale-[0.99] ${
+            stockFilterMode === 'all'
+              ? 'border-teal ring-2 ring-teal/30 bg-teal-50/20 shadow-warm-md'
+              : 'border-warm-border hover:border-teal/50 hover:shadow-warm-md'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm font-bold uppercase text-ink-muted">Total Wallpapers</div>
+            {stockFilterMode === 'all' && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-subtle text-teal">
+                Active
+              </span>
+            )}
+          </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-ink mt-1.5">{products.length}</div>
-          <div className="text-xs text-ink-muted mt-1">Distinct designs registered</div>
+          <div className="text-xs text-ink-muted mt-1">Distinct designs registered &bull; Click to show all</div>
         </Card>
 
-        <Card className="p-5 sm:p-6 bg-paper border border-warm-border shadow-warm">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setStockFilterMode('all')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStockFilterMode('all');
+            }
+          }}
+          className="p-5 sm:p-6 bg-paper border border-warm-border hover:border-teal/50 hover:shadow-warm-md shadow-warm cursor-pointer transition-all select-none active:scale-[0.99]"
+        >
           <div className="text-xs sm:text-sm font-bold uppercase text-ink-muted">Total Rolls In Stock</div>
           <div className="text-2xl sm:text-3xl font-extrabold text-teal mt-1.5">
             {totalStockRolls.toLocaleString()}
@@ -265,20 +307,76 @@ export default function StockPage() {
           <div className="text-xs text-ink-muted mt-1">Available for dispatch</div>
         </Card>
 
-        <Card className="p-5 sm:p-6 bg-paper border border-warm-border shadow-warm">
-          <div className="text-xs sm:text-sm font-bold uppercase text-ink-muted">Low Stock Warnings</div>
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setStockFilterMode((prev) => (prev === 'low_stock' ? 'all' : 'low_stock'))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStockFilterMode((prev) => (prev === 'low_stock' ? 'all' : 'low_stock'));
+            }
+          }}
+          className={`p-5 sm:p-6 bg-paper border cursor-pointer transition-all select-none active:scale-[0.99] ${
+            stockFilterMode === 'low_stock'
+              ? 'border-amber-500 ring-2 ring-amber-500/40 bg-amber-50 shadow-warm-md'
+              : 'border-warm-border hover:border-amber-400 hover:bg-amber-50/30 hover:shadow-warm-md'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm font-bold uppercase text-amber-900">Low Stock Warnings</div>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                stockFilterMode === 'low_stock'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-amber-100 text-amber-800'
+              }`}
+            >
+              {stockFilterMode === 'low_stock' ? 'Active Filter' : 'Click to view'}
+            </span>
+          </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1.5">
             {totalLowStockItems}
           </div>
-          <div className="text-xs text-ink-muted mt-1">&le; 3 rolls remaining</div>
+          <div className="text-xs text-amber-700 mt-1">
+            &le; 3 rolls remaining {stockFilterMode === 'low_stock' ? '(Click to clear)' : ''}
+          </div>
         </Card>
 
-        <Card className="p-5 sm:p-6 bg-paper border border-warm-border shadow-warm">
-          <div className="text-xs sm:text-sm font-bold uppercase text-ink-muted">Out of Stock</div>
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setStockFilterMode((prev) => (prev === 'out_of_stock' ? 'all' : 'out_of_stock'))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStockFilterMode((prev) => (prev === 'out_of_stock' ? 'all' : 'out_of_stock'));
+            }
+          }}
+          className={`p-5 sm:p-6 bg-paper border cursor-pointer transition-all select-none active:scale-[0.99] ${
+            stockFilterMode === 'out_of_stock'
+              ? 'border-rose-500 ring-2 ring-rose-500/40 bg-rose-50 shadow-warm-md'
+              : 'border-warm-border hover:border-rose-400 hover:bg-rose-50/30 hover:shadow-warm-md'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs sm:text-sm font-bold uppercase text-rose-900">Out of Stock</div>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                stockFilterMode === 'out_of_stock'
+                  ? 'bg-status-danger text-white'
+                  : 'bg-rose-100 text-rose-800'
+              }`}
+            >
+              {stockFilterMode === 'out_of_stock' ? 'Active Filter' : 'Click to view'}
+            </span>
+          </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-status-danger mt-1.5">
             {totalOutOfStock}
           </div>
-          <div className="text-xs text-ink-muted mt-1">0 rolls available</div>
+          <div className="text-xs text-rose-700 mt-1">
+            0 rolls available {stockFilterMode === 'out_of_stock' ? '(Click to clear)' : ''}
+          </div>
         </Card>
       </div>
 
@@ -297,7 +395,7 @@ export default function StockPage() {
             />
           </div>
 
-          {/* Dropdown Filters & Low Stock Toggle */}
+          {/* Dropdown Filters & Stock Status Buttons */}
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <select
               value={selectedBook}
@@ -325,19 +423,80 @@ export default function StockPage() {
               ))}
             </select>
 
-            <button
-              onClick={() => setFilterLowStockOnly(!filterLowStockOnly)}
-              className={`min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap ${
-                filterLowStockOnly
-                  ? 'bg-amber-500 text-white shadow-warm'
-                  : 'bg-paper text-ink-muted hover:text-ink border border-warm-border'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span>Low Stock Only</span>
-            </button>
+            {/* Filter Toggle Buttons Group */}
+            <div className="flex items-center gap-1.5 bg-paper-light border border-warm-border p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setStockFilterMode('all')}
+                className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  stockFilterMode === 'all'
+                    ? 'bg-teal text-white shadow-warm'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                All ({products.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStockFilterMode((prev) => (prev === 'low_stock' ? 'all' : 'low_stock'))}
+                className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  stockFilterMode === 'low_stock'
+                    ? 'bg-amber-500 text-white shadow-warm'
+                    : 'text-amber-800 hover:bg-amber-50'
+                }`}
+                title="Filter Low Stock (≤ 3 rolls)"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Low Stock ({totalLowStockItems})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStockFilterMode((prev) => (prev === 'out_of_stock' ? 'all' : 'out_of_stock'))}
+                className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  stockFilterMode === 'out_of_stock'
+                    ? 'bg-status-danger text-white shadow-warm'
+                    : 'text-rose-800 hover:bg-rose-50'
+                }`}
+                title="Filter Out of Stock (0 rolls)"
+              >
+                <AlertOctagon className="w-3.5 h-3.5" />
+                <span>Out of Stock ({totalOutOfStock})</span>
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Active Filter Banner */}
+        {stockFilterMode !== 'all' && (
+          <div className="mt-3 pt-3 border-t border-warm-borderLight flex items-center justify-between text-xs sm:text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-ink-muted">Active Filter:</span>
+              {stockFilterMode === 'low_stock' ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold border border-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  Low Stock Warnings (&le; 3 rolls remaining)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-900 font-bold border border-rose-300">
+                  <AlertOctagon className="w-3.5 h-3.5 text-status-danger" />
+                  Out of Stock (0 rolls available)
+                </span>
+              )}
+              <span className="text-ink-muted">({filteredProducts.length} wallpapers found)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStockFilterMode('all')}
+              className="text-teal hover:underline font-bold flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Show All Wallpapers</span>
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Stock Table */}
